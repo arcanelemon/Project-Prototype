@@ -115,9 +115,6 @@ public class PlayerController : MonoBehaviour
     // The current movement speed of the player
     private float movementSpeed;
 
-    //
-    private float fpsCamFOV;
-
     // Float used to clamp vertical looking constraints
     private float yLookClamp = 0;
 
@@ -145,7 +142,6 @@ public class PlayerController : MonoBehaviour
     //
     private bool aiming = false;
 
-    private Vector3 fpsCamTargetLocalPosition = Vector3.zero;
 
     // Enum used to define player movement state
     private enum State
@@ -166,7 +162,7 @@ public class PlayerController : MonoBehaviour
     private Transform playerUpper;
 
     //
-    private Camera fpsCamera;
+    private FPSCameraController fpsCameraController;
 
     //
     private Weapon weapon;
@@ -192,10 +188,10 @@ public class PlayerController : MonoBehaviour
         playerUpper = GetComponentsInChildren<Transform>()[1];
         weapon = GetComponentInChildren<Weapon>();
         weaponObject = weapon.gameObject;
-        fpsCamera = GetComponentInChildren<Camera>();
+        fpsCameraController = GetComponentInChildren<FPSCameraController>();
+
 
         movementSpeed = INIT_SPEED;
-        fpsCamFOV = fpsCamera.fieldOfView;
 
         // Pull from Config Data
 
@@ -211,14 +207,7 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         AdjustGravity();
-
-
-        // lerp fps cam to correct position (caused primarily from aiming) 
-        if (fpsCamera.transform.localPosition != fpsCamTargetLocalPosition)
-        {
-            HandleADS();
-        }
-
+        
 
         ////// HANDLE INPUT //////
 
@@ -499,6 +488,7 @@ public class PlayerController : MonoBehaviour
         {
             state = State.Sprinting;
             movementSpeed = SPRINT_SPEED;
+            fpsCameraController.DarkenVingette();
 
             // TODO: replace transform change with actual animations
             playerUpper.transform.localPosition = Vector3.up;
@@ -512,6 +502,7 @@ public class PlayerController : MonoBehaviour
     {
         state = State.Default;
         movementSpeed = INIT_SPEED;
+        fpsCameraController.ResetVignette();
 
         // TODO: replace transform change with actual animations
         playerUpper.transform.localPosition = Vector3.up;
@@ -530,10 +521,12 @@ public class PlayerController : MonoBehaviour
         {
             state = State.Crouched;
             movementSpeed = CROUCH_SPEED;
+            fpsCameraController.DarkenVingette();
 
             // TODO: replace transform change with actual animations
             playerUpper.transform.localPosition = new Vector3(0, 0.3f, 0);
         }
+
     }
 
     /// <summary>
@@ -572,6 +565,7 @@ public class PlayerController : MonoBehaviour
             rb.AddForce(direction * slideVelocity, ForceMode.VelocityChange);
             state = State.Sliding;
             StartCoroutine(ToggleCheckSlide());
+            fpsCameraController.DarkenVingette();
 
             // TODO: replace transform change with actual animations
             playerUpper.transform.localPosition = new Vector3(0, 0.3f, 0);
@@ -624,22 +618,9 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void ADS()
     {
-
-        switch (weapon.zoom)
-        {
-            case (Weapon.Zoom.Standard):
-                fpsCamTargetLocalPosition.z += 0.3f;
-                break;
-            case (Weapon.Zoom.Medium):
-                fpsCamTargetLocalPosition.z += 0.5f;
-                break;
-            case (Weapon.Zoom.Far):
-                fpsCamTargetLocalPosition.z += 1.5f;
-                break;
-        }
-
         aiming = true;
         weapon.ToggleAim();
+        fpsCameraController.Zoom(weapon.zoom);
     }
 
     /// <summary>
@@ -647,32 +628,9 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void ResetADS()
     {
-        fpsCamTargetLocalPosition.z = 0;
         aiming = false;
         weapon.ToggleAim();
-
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    private void HandleADS()
-    {
-        float interval;
-        float targetFOV;
-        if (aiming)
-        {
-            interval = 6f;
-            targetFOV = fpsCamFOV - weapon.ZoomToFOV();
-        }
-        else
-        {
-            interval = 10f;
-            targetFOV = fpsCamFOV;
-        }
-
-        fpsCamera.fieldOfView = Mathf.Lerp(fpsCamera.fieldOfView, targetFOV, interval * Time.deltaTime);
-        fpsCamera.transform.localPosition = Vector3.Lerp(fpsCamera.transform.localPosition, fpsCamTargetLocalPosition, interval * Time.deltaTime);
+        fpsCameraController.ResetZoom();
     }
 
     /// <summary>

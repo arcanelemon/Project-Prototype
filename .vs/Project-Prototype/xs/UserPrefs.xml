@@ -1,12 +1,13 @@
 ﻿<Properties StartupConfiguration="{C3C562FD-7032-EDCD-85F3-A03D7BE5248F}|">
-  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/Scripts/Controllers/PlayerController.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/Scripts/Controllers/FPSCameraController.cs">
     <Files>
-      <File FileName="Assets/Scripts/Controllers/PlayerController.cs" Line="1" Column="1" />
+      <File FileName="Assets/Scripts/Controllers/PlayerController.cs" Line="135" Column="1" />
+      <File FileName="Assets/Scripts/Controllers/FPSCameraController.cs" Line="181" Column="28" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.PinnedWatches />
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
-  <MonoDevelop.Ide.ItemProperties.Assembly-CSharp PreferredExecutionTarget="00c22573-7b9d-4164-9721-2c98bf78f821" />
+  <MonoDevelop.Ide.ItemProperties.Assembly-CSharp PreferredExecutionTarget="cdc66b27-07da-42b0-8cbf-2a14ff0cfd17" />
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
     <BreakpointStore />
   </MonoDevelop.Ide.DebuggingService.Breakpoints>
