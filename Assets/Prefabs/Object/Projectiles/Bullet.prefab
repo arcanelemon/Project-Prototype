@@ -192,9 +192,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00e7bdf20420074459792ed7d0f3092d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  damage: 0
+  damage: 500
   range: 100
-  speed: 15000
+  speed: 20000
   ricochette: 1
   impactParticle: {fileID: 0}
 --- !u!108 &-915641853064296868

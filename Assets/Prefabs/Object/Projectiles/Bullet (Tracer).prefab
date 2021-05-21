@@ -194,7 +194,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   damage: 0
   range: 100
-  speed: 15000
+  speed: 20000
   ricochette: 1
   impactParticle: {fileID: 0}
 --- !u!108 &2319002152712148192

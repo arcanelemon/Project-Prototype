@@ -4,12 +4,17 @@ using UnityEngine;
 
 public class Projectile : MonoBehaviour
 {
+    //
+    private float distance;
 
     //
     private Vector3 initialPosition;
 
     // 
     private Rigidbody rb;
+
+    //
+    private TrailRenderer trailRenderer;
 
     //
     private Collider col;
@@ -33,7 +38,11 @@ public class Projectile : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        trailRenderer = GetComponent<TrailRenderer>();
         initialPosition = transform.position;
+
+        // stagger immediate trail render to prevent strange behavior when strafing
+        trailRenderer.enabled = false;
 
         rb.AddForce(transform.forward * speed);
         Physics.IgnoreLayerCollision(8, 9);
@@ -42,9 +51,14 @@ public class Projectile : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (OutOfRange()) 
+        distance = CalculateDistance();
+
+        if (distance > range) 
         {
             Destroy(gameObject);
+        } else if (!trailRenderer.enabled && distance > 1f)
+        {
+            EnableTrail();
         }
     }
 
@@ -87,9 +101,17 @@ public class Projectile : MonoBehaviour
     /// <summary>
     /// 
     /// </summary>
-    private bool OutOfRange() 
+    private float CalculateDistance() 
     {
-        return Vector3.Distance(initialPosition, transform.position) > range;
+        return Vector3.Distance(initialPosition, transform.position);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private void EnableTrail()
+    {
+        trailRenderer.enabled = true;
     }
 
     /// <summary>
@@ -106,6 +128,11 @@ public class Projectile : MonoBehaviour
             {
                 Destroy(gameObject);
             }
+        }
+
+        if (!trailRenderer.enabled)
+        {
+            EnableTrail();
         }
     }
 }
