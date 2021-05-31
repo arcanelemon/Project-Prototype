@@ -18,11 +18,11 @@ TagManager:
   - UI
   - 
   - 
-  - Projectiles
   - Player
-  - 
-  - 
-  - 
+  - Enemy
+  - Weapon
+  - Loot
+  - Projectile
   - 
   - 
   - 
