@@ -257,6 +257,9 @@ public class PlayerController : MonoBehaviour
     //
     private bool emoteWheelActive;
 
+    //
+    private IEnumerator reloadCoroutine;
+
     // Enum used to define player movement state
     private enum State
     {
@@ -313,6 +316,14 @@ public class PlayerController : MonoBehaviour
     {
 
         // Set Variables
+        currHealth = health;
+        currSheild = sheild;
+        movementSpeed = initSpeed;
+        bulletBankLight = lightBulletBankStarting;
+        bulletBankMedium = mediumBulletBankStarting;
+        bulletBankHeavy = heavyBulletBankStarting;
+        bulletBankSpecial = specialBulletBankStarting;
+
         //playerUpper = gameObject.GetComponentInChildren<Transform>();
         rb = GetComponent<Rigidbody>();
         playerUpper = GetComponentsInChildren<Transform>()[1];
@@ -327,20 +338,10 @@ public class PlayerController : MonoBehaviour
 
         SwapWeapons(0);
 
-        currHealth = health;
-        currSheild = sheild;
-        movementSpeed = initSpeed;
-        bulletBankLight = lightBulletBankStarting;
-        bulletBankMedium = mediumBulletBankStarting;
-        bulletBankHeavy = heavyBulletBankStarting;
-        bulletBankSpecial = specialBulletBankStarting;
-
         // Pull from Config Data
-
 
         // Initialize State
         MouseUtils.LockMouse();
-
     }
 
     /// <summary>
@@ -464,15 +465,10 @@ public class PlayerController : MonoBehaviour
             {
                 Look();
 
-
                 // Check for Attack Button
                 if (canAttack)
                 {
-                    if (weapon.IsEmpty())
-                    {
-                        StartReloadCoroutine();
-                    }
-                    else if (Input.GetButton("Fire") && (weapon.varient == Weapon.Varient.Auto || weapon.varient == Weapon.Varient.Burst))
+                    if (Input.GetButton("Fire") && (weapon.varient == Weapon.Varient.Auto || weapon.varient == Weapon.Varient.Burst))
                     {
                         Attack();
                     }
@@ -865,9 +861,15 @@ public class PlayerController : MonoBehaviour
     {
         if (weapon.type == Weapon.Type.Gun)
         {
-            StartCoroutine(LimitFireRate());
-            weapon.Shoot();
-            hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
+            if (weapon.IsEmpty())
+            {
+                StartReloadCoroutine();
+            } else 
+            {
+                StartCoroutine(LimitFireRate());
+                weapon.Shoot();
+                hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
+            }
         }
     }
 
@@ -882,10 +884,19 @@ public class PlayerController : MonoBehaviour
         {
             ResetADS();
         }
-        weapon.Reload();
+
+        int ammoConsumed = weapon.GetUsedAmmo();
+
+        // Animator
+
+        // TODO: wait for anim time
+        int ammoAvailable = AmmoTypeToAmmount(weapon.ammoType);
+        weapon.Reload(ammoAvailable < weapon.GetMagazineSize() ? ammoAvailable : weapon.GetMagazineSize());
         hudController.EnableReloadIcon(2);
         yield return new WaitForSeconds(2);
+        IncrementBulletBank(weapon.ammoType, -ammoConsumed);
         hudController.EnableDefaultIcon();
+        hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
         hudController.UpdateTotalAmmo(AmmoTypeToAmmount(weapon.ammoType));
         canAttack = true;
     }
@@ -895,10 +906,27 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void StartReloadCoroutine()
     {
-        if (weapon.state != Weapon.State.Reloading)
+        if (weapon.state != Weapon.State.Reloading && AmmoTypeToAmmount(weapon.ammoType) > 0)
         {
-            IncrementBulletBank(weapon.ammoType, -weapon.GetUsedAmmo());
-            StartCoroutine(Reload());
+            StopReloadCoroutine();
+            reloadCoroutine = Reload();
+            StartCoroutine(reloadCoroutine);
+        }
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    private void StopReloadCoroutine()
+    {
+        if (reloadCoroutine != null) 
+        {
+            StopCoroutine(reloadCoroutine);
+            hudController.EnableDefaultIcon();
+            hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
+            hudController.UpdateTotalAmmo(AmmoTypeToAmmount(weapon.ammoType));
+            weapon.state = Weapon.State.Idle;
+            canAttack = true;
         }
     }
 
@@ -1093,6 +1121,9 @@ public class PlayerController : MonoBehaviour
             if (weapon.state == Weapon.State.Aiming)
             {
                 ResetADS();
+            } else if (weapon.state == Weapon.State.Reloading) 
+            {
+                StopReloadCoroutine();
             }
 
             weapon.gameObject.SetActive(false);
@@ -1115,22 +1146,22 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     /// <param name="type"></param>
     /// <param name="amount"></param>
-    private void IncrementBulletBank(AmmoPickup.Type type, int amount)
+    private void IncrementBulletBank(Ammo.Type type, int amount)
     {
         switch(type)
         {
             case Ammo.Type.Light:
-                bulletBankLight += amount;
+                bulletBankLight = bulletBankLight + amount < 0 ? 0 : bulletBankLight + amount;
             break;
             case Ammo.Type.Medium:
-                bulletBankMedium += amount;
-            break;
+                bulletBankMedium = bulletBankMedium + amount < 0 ? 0 : bulletBankMedium + amount;
+                break;
             case Ammo.Type.Heavy:
-                bulletBankHeavy += amount;
-            break;
+                bulletBankHeavy = bulletBankHeavy + amount < 0 ? 0 : bulletBankHeavy + amount;
+                break;
             case Ammo.Type.Special:
-                bulletBankSpecial += amount;
-            break;
+                bulletBankSpecial = bulletBankSpecial + amount < 0 ? 0 : bulletBankSpecial + amount;
+                break;
         }
     }
 
@@ -1139,15 +1170,15 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     /// <param name="type"></param>
     /// <returns></returns>
-    private int AmmoTypeToAmmount(AmmoBuilder.Type type)
+    private int AmmoTypeToAmmount(Ammo.Type type)
     {
         switch (type)
         {
-            case AmmoBuilder.Type.Light:
+            case Ammo.Type.Light:
                 return bulletBankLight;
-            case AmmoBuilder.Type.Heavy:
+            case Ammo.Type.Heavy:
                 return bulletBankHeavy;
-            case AmmoBuilder.Type.Special:
+            case Ammo.Type.Special:
                 return bulletBankSpecial;
             default:
                 return bulletBankMedium;
@@ -1226,6 +1257,8 @@ public class PlayerController : MonoBehaviour
         if (weapons.Length > 1)
         {
             this.weapon.Drop();
+            weapons[weaponSwapIndex] = weapon;
+            this.weapon = weapon;
             SwapWeapons(weaponSwapIndex);
         } else if (weapons.Length == 1)
         {
@@ -1270,7 +1303,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     /// <param name="type"></param>
     /// <param name="amount"></param>
-    public void AddAmmo(AmmoPickup.Type type, int amount)
+    public void AddAmmo(Ammo.Type type, int amount)
     {
         IncrementBulletBank(type, amount);
 

@@ -70,12 +70,16 @@ public class HUDController : MonoBehaviour
     private Image weaponSillouhete;
 
     //
-    [SerializeField]
     private TextMeshProUGUI ammoCounter;
 
     //
-    [SerializeField]
     private TextMeshProUGUI totalAmmoCounter;
+
+    //
+    private Image weaponUnavailableImage;
+
+    //
+    private Image weaponInfoBackgroundImage;
 
     //
     [SerializeField]
@@ -370,6 +374,14 @@ public class HUDController : MonoBehaviour
         {
             ammoCounter.color = Color.white;
         }
+
+        if (ammoCounter.text == "--" && totalAmmoCounter.text == "--" && !weaponUnavailableImage.gameObject.activeInHierarchy) 
+        {
+            ammoCounter.gameObject.SetActive(false);
+            totalAmmoCounter.gameObject.SetActive(false);
+            weaponUnavailableImage.gameObject.SetActive(true);
+            weaponInfoBackgroundImage.color = Color.red;
+        }
     }
 
     /// <summary>
@@ -378,6 +390,14 @@ public class HUDController : MonoBehaviour
     /// <param name="totalAmmo"></param>
     public void UpdateTotalAmmo(int totalAmmo)
     {
+        if (!ammoCounter.gameObject.activeInHierarchy)
+        {
+            ammoCounter.gameObject.SetActive(true);
+            totalAmmoCounter.gameObject.SetActive(true);
+            weaponUnavailableImage.gameObject.SetActive(false);
+            weaponInfoBackgroundImage.color = Color.white;
+        }
+
         totalAmmoCounter.text = totalAmmo.ToString();
 
         if (totalAmmo == 0 && totalAmmoCounter.text != "--")
@@ -519,6 +539,14 @@ public class HUDController : MonoBehaviour
         }
 
         // TODO: Play audio from AudioManager
+    }
+
+    public void AssignWeaponInformation(TextMeshProUGUI ammoCounter, TextMeshProUGUI totalAmmoCounter, Image weaponUnavailableImage, Image weaponInfoBackgroundImage) 
+    {
+        this.ammoCounter = ammoCounter;
+        this.totalAmmoCounter = totalAmmoCounter;
+        this.weaponUnavailableImage = weaponUnavailableImage;
+        this.weaponInfoBackgroundImage = weaponInfoBackgroundImage;
     }
 
     /// <summary>

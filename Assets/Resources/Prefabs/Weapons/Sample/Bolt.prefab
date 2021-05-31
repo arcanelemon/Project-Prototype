@@ -81,7 +81,7 @@ MonoBehaviour:
   varient: 0
   weight: 1
   ammoType: 1
-  speed: 15
+  speed: 50
   damage: 35
   ammo: 35
   spread: 0.1
