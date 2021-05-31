@@ -4,19 +4,28 @@ using UnityEngine;
 
 public class Enemy : MonoBehaviour
 {
-    [SerializeField]
-    private float health = 500;
-
-    [SerializeField]
-    [Range(0, 50)]
-    private int minEssenceDrop;
-
-    [SerializeField]
-    [Range (0, 50)]
-    private int maxEssenceDrop;
+    ////// VARIABLES //////
 
     //
-    private bool alive = true;
+    [SerializeField]
+    private float health = 300;
+
+    //
+    [SerializeField]
+    private Tier tier = Tier.Standard;
+
+    //
+    [SerializeField]
+    private GameObject enemyDrop;
+
+    //
+    public enum Tier 
+    {
+        Standard,
+        Elite,
+        MiniBoss,
+        Boss,
+    }
 
 
     ////// PRIVATE //////
@@ -26,23 +35,13 @@ public class Enemy : MonoBehaviour
     /// </summary>
     private void SpawnLoot()
     {
-        // drop essence
-        StartCoroutine(IncrementEssenceSpawn(Random.Range(minEssenceDrop, maxEssenceDrop)));
+        // TODO: Choose random loot rarity and preference base loot rarity from player
+        LootManager.DropLoot(0, tier, transform);
 
-        // TODO: pull all loot from loot manager. 
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="numEssenceToSpawn"></param>
-    /// <returns></returns>
-    private IEnumerator IncrementEssenceSpawn(int numEssenceToSpawn)
-    {
-        for (int i = 0; i < numEssenceToSpawn; i++)
+        // TODO: Spawn enemy specific drop based on rng and rarity
+        if (enemyDrop != null) 
         {
-            ObjectPool.Instance.SpawnFromPool("Essence", transform.position, transform.rotation);
-            yield return new WaitForSeconds(0.1f);
+            Instantiate(enemyDrop, transform.position, transform.rotation);
         }
     }
 
@@ -51,9 +50,8 @@ public class Enemy : MonoBehaviour
     /// </summary>
     private void Die()
     {
-        alive = false;
         SpawnLoot();
-        Destroy(gameObject, 1);
+        Destroy(gameObject);
     }
 
 
@@ -67,11 +65,9 @@ public class Enemy : MonoBehaviour
     {
         // TODO: Adjust damage based on damage type and player damage modifier
         health -= damage;
-        if (health <= 0 && alive)
+        if (health <= 0)
         {
             Die();
         }
     }
-
-
 }

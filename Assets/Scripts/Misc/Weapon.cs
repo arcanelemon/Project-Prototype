@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System;
 using UnityEngine;
+using TMPro;
+using UnityEngine.UI;
 using UnityEngine.VFX;
 using UnityEditor;
 using Random = UnityEngine.Random;
@@ -16,7 +18,6 @@ public class Weapon : MonoBehaviour, Interactable
         Gun,
         Thrower,
     }
-
 
     [Header("Classification")]
     [Space(10)]
@@ -47,16 +48,16 @@ public class Weapon : MonoBehaviour, Interactable
     public Weight weight = Weight.Medium;
 
     //
-    public Ammo.Type ammoType = AmmoPickup.Type.Medium;
+    public Ammo.Type ammoType = Ammo.Type.Medium;
 
     [Space(10)]
     [Header("General")]
     [Space(10)]
 
     //
-    [Range (1, 30)]
+    [Range (15, 100)]
     [SerializeField]
-    private float speed = 20000;
+    private float speed = 30000;
 
     //
     [SerializeField]
@@ -194,6 +195,26 @@ public class Weapon : MonoBehaviour, Interactable
     [SerializeField]
     private GameObject weaponCharm;
 
+    [Space(10)]
+    [Header("Misc Components")]
+    [Space(10)]
+
+    //
+    [SerializeField]
+    private TextMeshProUGUI ammoCounter;
+
+    //
+    [SerializeField]
+    private TextMeshProUGUI totalAmmoCounter;
+
+    //
+    [SerializeField]
+    private Image weaponUnavailableImage;
+
+    //
+    [SerializeField]
+    private Image weaponInfoBackgroundImage;
+
     //
     private int currAmmo;
 
@@ -274,7 +295,9 @@ public class Weapon : MonoBehaviour, Interactable
     /// </summary>
     private void Start()
     {
-       
+        currAmmo = ammo;
+        currSpread = spread;
+        currMaxSpread = maxSpread;
     }
 
     /// <summary>
@@ -392,15 +415,14 @@ public class Weapon : MonoBehaviour, Interactable
     }
 
     /// <summary>
-    /// Decrements recoil after completion
+    /// 
     /// </summary>
+    /// <param name="ammo"></param>
     /// <returns></returns>
-    private IEnumerator ReloadCoroutine()
+    private IEnumerator ReloadCoroutine(int ammo)
     {
         state = State.Reloading;
         currAmmo = 0;
-        
-        // Animators
 
         // TODO: wait for anim time
         yield return new WaitForSeconds(2);
@@ -482,15 +504,14 @@ public class Weapon : MonoBehaviour, Interactable
         // TODO: if settle animation exists, change settle time to settle animation time
         // settleTime = Anim.GetTime();
 
-        currAmmo = ammo;
-        currSpread = spread;
-        currMaxSpread = maxSpread;
+        
         opened = false;
 
         player = transform.parent != null && transform.parent.tag is "Player";
         if (player)
         {
             hudController =  GameObject.FindObjectOfType<HUDController>();
+            hudController.AssignWeaponInformation(ammoCounter, totalAmmoCounter, weaponUnavailableImage, weaponInfoBackgroundImage);
 
             // TODO: Load Custom Charm and skin
             if (weaponCharm != null)
@@ -539,20 +560,17 @@ public class Weapon : MonoBehaviour, Interactable
                     SpawnProjectile();
                     break;
             }
-        } else if (currAmmo <= 0)
-        {
-            Reload();
         }
     }
 
     /// <summary>
     /// 
     /// </summary>
-    public void Reload()
+    public void Reload(int ammo)
     {
         if (state != State.Reloading)
         {
-            StartCoroutine(ReloadCoroutine());
+            StartCoroutine(ReloadCoroutine(ammo));
         }
     }
 
@@ -631,6 +649,15 @@ public class Weapon : MonoBehaviour, Interactable
     public int GetRemainingAmmo()
     {
         return currAmmo;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public int GetMagazineSize()
+    {
+        return ammo;
     }
 
     /// <summary>
