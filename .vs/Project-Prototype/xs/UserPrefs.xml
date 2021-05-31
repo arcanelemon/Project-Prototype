@@ -1,13 +1,55 @@
 ﻿<Properties StartupConfiguration="{C3C562FD-7032-EDCD-85F3-A03D7BE5248F}|">
-  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/Scripts/Controllers/FPSCameraController.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/Scripts/Misc/Weapon.cs">
     <Files>
-      <File FileName="Assets/Scripts/Controllers/PlayerController.cs" Line="135" Column="1" />
-      <File FileName="Assets/Scripts/Controllers/FPSCameraController.cs" Line="181" Column="28" />
+      <File FileName="Assets/Scripts/Interactable.cs" Line="4" Column="1" />
+      <File FileName="Assets/Scripts/Misc/Weapon.cs" Line="18" Column="6" />
+      <File FileName="Assets/Scripts/Controllers/HUDController.cs" Line="467" Column="32" />
+      <File FileName="Assets/Scripts/Controllers/PlayerController.cs" Line="1131" Column="28" />
+      <File FileName="Assets/Scripts/ObjectPool.cs" />
+      <File FileName="Assets/Scripts/PooledObject.cs" />
+      <File FileName="Assets/Scripts/AmmoPickup.cs" Line="82" Column="18" />
+      <File FileName="Assets/Scripts/AI/EnemyTestCube.cs" Line="37" Column="1" />
+      <File FileName="Assets/Scripts/Misc/Enemy.cs" Line="17" Column="1" />
+      <File FileName="Assets/Scripts/Essence.cs" />
+      <File FileName="Assets/Scripts/Objects/Projectile.cs" />
+      <File FileName="Assets/Scripts/Utils/MouseUtils.cs" />
+      <File FileName="Assets/Scripts/Managers/GameManager.cs" />
+      <File FileName="Assets/Scripts/Managers/UIManager.cs" />
+      <File FileName="Assets/Scripts/InteractionPoint.cs" />
+      <File FileName="Assets/EmoteButton.cs" />
+      <File FileName="Assets/Scripts/Pickupable.cs" />
+      <File FileName="Assets/Ammo.cs" />
     </Files>
+    <Pads>
+      <Pad Id="ProjectPad">
+        <State name="__root__">
+          <Node name="Project-Prototype" expanded="True">
+            <Node name="Assets" expanded="True">
+              <Node name="Resources" expanded="True">
+                <Node name="Prefabs" expanded="True">
+                  <Node name="UI" expanded="True" />
+                </Node>
+              </Node>
+              <Node name="Scripts" expanded="True">
+                <Node name="AI" expanded="True" />
+                <Node name="Controllers" expanded="True" />
+                <Node name="Managers" expanded="True" />
+                <Node name="Misc" expanded="True">
+                  <Node name="Weapon.cs" selected="True" />
+                </Node>
+                <Node name="Objects" expanded="True" />
+                <Node name="UI" expanded="True" />
+                <Node name="Utils" expanded="True" />
+              </Node>
+            </Node>
+          </Node>
+        </State>
+      </Pad>
+    </Pads>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.PinnedWatches />
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
-  <MonoDevelop.Ide.ItemProperties.Assembly-CSharp PreferredExecutionTarget="cdc66b27-07da-42b0-8cbf-2a14ff0cfd17" />
+  <MonoDevelop.Ide.ItemProperties.Assembly-CSharp PreferredExecutionTarget="1a5dd05b-6a2d-43c3-9e1a-0ecc2c28ba4c" />
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
     <BreakpointStore />
   </MonoDevelop.Ide.DebuggingService.Breakpoints>

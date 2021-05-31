@@ -99,12 +99,12 @@ public class FPSCameraController : MonoBehaviour
             switch (zoom)
             {
                 case (Weapon.Zoom.Standard):
-                    targetFOV = cam.fieldOfView - 5;
-                    targetPosition.z += 0.3f;
+                    targetFOV = cam.fieldOfView - 1;
+                    targetPosition.z += 0.1f;
                     break;
                 case (Weapon.Zoom.Medium):
-                    targetFOV = cam.fieldOfView - 10;
-                    targetPosition.z += 0.5f;
+                    targetFOV = cam.fieldOfView - 3;
+                    targetPosition.z += 0.3f;
                     break;
                 case (Weapon.Zoom.Far):
                     targetFOV = cam.fieldOfView - 35;
@@ -113,7 +113,7 @@ public class FPSCameraController : MonoBehaviour
             }
 
             shouldZoom = true;
-        } else if (cam.fieldOfView == cam.fieldOfView - targetFOV)
+        } else if (cam.fieldOfView == fov - targetFOV)
         {
             shouldZoom = false;
         }
@@ -184,5 +184,17 @@ public class FPSCameraController : MonoBehaviour
         }
 
         vignette.intensity.value = Mathf.Lerp(vignette.intensity.value, minVignetteIntensity, 5 * Time.deltaTime);
+    }
+
+
+    ////// MUTATORS //////
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public bool GetVignetteActive()
+    {
+        return darkenVignette;
     }
 }
