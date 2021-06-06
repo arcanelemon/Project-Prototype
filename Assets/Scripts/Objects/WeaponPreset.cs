@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(Weapon))]
+
 public class WeaponPreset : MonoBehaviour
 {
     ////// VARIABLES

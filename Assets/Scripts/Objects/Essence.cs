@@ -2,27 +2,37 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Essence : Pickupable
+[RequireComponent (typeof(Pickupable))]
+public class Essence : MonoBehaviour
 {
+    ///// VARIABLES //////
+    
     //
     public int amount = 1;
+
+    //
+
+    private Pickupable pickupableComponent;
+
 
     ////// OVERRIDES //////
 
     /// <summary>
     /// 
     /// </summary>
-    private void FixedUpdate()
+    private void Awake()
     {
-        TowardsPlayer();
+        pickupableComponent = GetComponent<Pickupable>();
+        pickupableComponent.ExecuteTrigger += Execution;
+        pickupableComponent.motion = Pickupable.PickUpMotion.Fly;
     }
+
 
     /// <summary>
     /// 
     /// </summary>
-    override
-    public void ExecuteTrigger(PlayerController player)
+    private void Execution()
     {
-        player.AddEssence(amount);
+        GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerController>().AddEssence(amount);
     }
 }

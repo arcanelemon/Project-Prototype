@@ -1,9 +1,10 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent (typeof(Rigidbody), typeof(Collider))]
-public abstract class Pickupable : MonoBehaviour
+public class Pickupable : MonoBehaviour
 {
     //
     private const float ROTATION_DEGREE = 360;
@@ -12,8 +13,33 @@ public abstract class Pickupable : MonoBehaviour
     private const float SPEED = 2000;
 
     //
+    private const float MAGNETIZE_DISTANCE_THRESHHOLD = 4;
+
+    //
+    private const float MAGNETISM_FORCE = 1;
+
+    //
+    private const float MAGNETISM_VELOCITY_CAP = 3;
+
+    //
+    private Vector3 previousPlayerPosition;
+
+    //
     private Rigidbody rb;
 
+    //
+    private Transform player;
+
+    //
+    [HideInInspector]
+    public PickUpMotion motion = PickUpMotion.Magnetize;
+
+    //
+    public enum PickUpMotion
+    {
+        Magnetize,
+        Fly,
+    }
 
     ////// OVERRIDES //////
 
@@ -23,6 +49,23 @@ public abstract class Pickupable : MonoBehaviour
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        player = GameObject.FindGameObjectWithTag("Player").transform;
+
+        if (motion == PickUpMotion.Fly) 
+        {
+            UpdateEvent += TowardsPlayer;
+        } else 
+        {
+            UpdateEvent += Magnetize;
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private void FixedUpdate()
+    {
+        UpdateEvent();
     }
 
     /// <summary>
@@ -35,31 +78,36 @@ public abstract class Pickupable : MonoBehaviour
 
         if (tag is "Player")
         {
-            ExecuteTrigger(other.gameObject.GetComponent<PlayerController>());
+            ExecuteTrigger();
             Destroy(gameObject);
         }
     }
 
 
+    ////// PRIVATE //////
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public Action UpdateEvent;
+
+
     ////// PUBLIC /////
-    
+
     ///
     /// <summary>
     /// 
     /// </summary>
     public void TowardsPlayer()
     {
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-
         if (player != null)
         {
             Vector3 direction = player.transform.position - transform.position;
             direction.Normalize();
             Vector3 rotateAmount = Vector3.Cross(transform.forward, direction);
             rb.angularVelocity = rotateAmount * ROTATION_DEGREE;
+            rb.velocity = transform.forward * SPEED * Time.deltaTime;
         }
-
-        rb.velocity = transform.forward * SPEED * Time.deltaTime;
     }
 
     /// <summary>
@@ -67,11 +115,25 @@ public abstract class Pickupable : MonoBehaviour
     /// </summary>
     public void Magnetize()
     {
+        float distance = Vector3.Distance(transform.position, player.transform.position);
+        if (distance <= MAGNETIZE_DISTANCE_THRESHHOLD)
+        {
+            if (player.position != previousPlayerPosition || distance < 1.5f) 
+            {
 
+                if (rb.velocity.magnitude < MAGNETISM_VELOCITY_CAP)
+                {
+                    rb.AddForce((player.position - transform.position).normalized * MAGNETISM_FORCE, ForceMode.Impulse);
+                }
+
+                previousPlayerPosition = player.position;
+                // TODO: play coin jingle audio.
+            }
+        }
     }
 
     /// <summary>
     /// 
     /// </summary>
-    public abstract void ExecuteTrigger(PlayerController player);
+    public Action ExecuteTrigger;
 }

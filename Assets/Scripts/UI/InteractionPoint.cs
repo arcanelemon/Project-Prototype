@@ -49,6 +49,9 @@ public class InteractionPoint : MonoBehaviour
     //
     private GameObject assignee;
 
+    //
+    private GameObject player;
+
 
     ////// OVERRIDES //////
 
@@ -58,6 +61,7 @@ public class InteractionPoint : MonoBehaviour
     void Start()
     {
         animator = GetComponent<Animator>();
+        player = GameObject.FindGameObjectWithTag("Player");
     }
 
     /// <summary>

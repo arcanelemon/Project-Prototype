@@ -17,6 +17,7 @@ public class Weapon : MonoBehaviour, Interactable
     {
         Gun,
         Thrower,
+        Launcher,
     }
 
     [Header("Classification")]
@@ -55,57 +56,8 @@ public class Weapon : MonoBehaviour, Interactable
     [Space(10)]
 
     //
-    [Range (15, 100)]
     [SerializeField]
-    private float speed = 30000;
-
-    //
-    [SerializeField]
-    private float damage = 10;
-
-    //
-    [Range(1, 9999)]
-    [SerializeField]
-    private int ammo = 30;
-
-    //
-    [Range(0, 1)]
-    [SerializeField]
-    private float spread = 0;
-
-    //
-    [Range(0, 2)]
-    [SerializeField]
-    private float maxSpread = 0;
-
-    //
-    [Range(0, 0.2f)]
-    [SerializeField]
-    private float recoil = 0;
-
-    // The time it takes for recoil to "settle".
-    [Range(0, 1)]
-    [SerializeField]
-    private float settleTime = 0.2f;
-
-    //
-    [Range(1, 5)]
-    [SerializeField]
-    private float recoilDecrementSpeed = 1;
-
-    //
-    [Range(25, 500)]
-    [SerializeField]
-    private float range = 100;
-
-    //
-    [Range(1, 30)]
-    [SerializeField]
-    private int bulletsPerShot = 1;
-
-    //
-    [SerializeField]
-    private bool ricochette = false;
+    private bool hitScan;
 
     //
     public enum Zoom
@@ -119,17 +71,53 @@ public class Weapon : MonoBehaviour, Interactable
     //
     public Zoom zoom = Zoom.Standard;
 
-    [Space(10)]
-    [Header("Auto Settings")]
-    [Space(10)]
+    //
+    [SerializeField]
+    private float damage = 10;
+
+    //
+    [Range(1, 9999)]
+    [SerializeField]
+    private int ammo = 30;
 
     //
     [Range(60, 1500)]
     [SerializeField]
     private int rateOfFire = 1200;
 
+    //
+    [Range(25, 500)]
+    [SerializeField]
+    private float range = 100;
+
+    //
+    [Range(0, 1)]
+    [SerializeField]
+    private float spread = 0;
+
+    //
+    [Range(1, 30)]
+    [SerializeField]
+    private int bulletsPerShot = 1;
+
     [Space(10)]
-    [Header("Burst Settings")]
+
+    //
+    [Range(0, 1)]
+    public float verticalRecoil = 0;
+
+    //
+    [Range(0, 1)]
+    public float horizontalRecoil = 0;
+    
+    //
+    [Range(1, 10)]
+    public float maxVerticalRecoil = 0;
+
+    //
+    [Range(1, 10)]
+    public float maxHorizontalRecoil = 0;
+
     [Space(10)]
 
     //
@@ -148,7 +136,24 @@ public class Weapon : MonoBehaviour, Interactable
     private float burstTime = 0f;
 
     [Space(10)]
-    [Header("Track Settings")]
+    [Header("Projectile Settings")]
+    [Space(10)]
+
+    //
+    [Range(15, 100)]
+    [SerializeField]
+    private float speed = 30000;
+
+    //
+    [SerializeField]
+    private GameObject projectilePrefab;
+
+    [Space(10)]
+
+    //
+    [SerializeField]
+    private bool ricochette = false;
+
     [Space(10)]
 
     //
@@ -177,13 +182,9 @@ public class Weapon : MonoBehaviour, Interactable
     [SerializeField]
     private GameObject impactEffect;
 
-    //
-    [SerializeField]
-    private GameObject projectilePrefab;
-
     // TODO: Remove Custom Attributes. Load from player config.
 
-    [Space(10)]
+    [Space(20)]
     [Header("Custom")]
     [Space(10)]
 
@@ -196,8 +197,12 @@ public class Weapon : MonoBehaviour, Interactable
     private GameObject weaponCharm;
 
     [Space(10)]
-    [Header("Misc Components")]
+    [Header("UI Components")]
     [Space(10)]
+
+    //
+    [SerializeField]
+    private GameObject weaponInformation;
 
     //
     [SerializeField]
@@ -205,11 +210,15 @@ public class Weapon : MonoBehaviour, Interactable
 
     //
     [SerializeField]
+    private GameObject ammoGameObject;
+
+    //
+    [SerializeField]
     private TextMeshProUGUI totalAmmoCounter;
 
     //
     [SerializeField]
-    private Image weaponUnavailableImage;
+    private GameObject weaponUnavailable;
 
     //
     [SerializeField]
@@ -219,28 +228,13 @@ public class Weapon : MonoBehaviour, Interactable
     private int currAmmo;
 
     //
-    private float currSpread = 0;
-
-    //
-    private float currMaxSpread = 0;
-
-    //
-    private float currRecoil = 0;
-
-    //
     private int muzzleTurn = 0;
-
-    //
-    private bool decrementRecoil = false;
 
     //
     private bool opened;
 
     //
     private bool player;
-
-    //
-    private IEnumerator recoilCoroutine;
 
     //
     private IEnumerator burstCoroutine;
@@ -296,8 +290,6 @@ public class Weapon : MonoBehaviour, Interactable
     private void Start()
     {
         currAmmo = ammo;
-        currSpread = spread;
-        currMaxSpread = maxSpread;
     }
 
     /// <summary>
@@ -323,57 +315,12 @@ public class Weapon : MonoBehaviour, Interactable
 
     private void UpdateWeaponCore()
     {
-        if (decrementRecoil)
-        {
-            if (currRecoil <= 0)
-            {
-                currRecoil = 0;
-                decrementRecoil = false;
-            }
-            else if (currRecoil > 0)
-            {
-                currRecoil -= Time.deltaTime * recoilDecrementSpeed;
-            }
-        }
+        
     }
 
     private IEnumerator WaitForDependencies()
     {
         yield break;
-    }
-
-    /// <summary>
-    /// Decrements recoil after completion
-    /// </summary>
-    /// <returns></returns>
-    private IEnumerator RecoilCoroutine()
-    {
-        decrementRecoil = false;
-        yield return new WaitForSeconds(settleTime);
-        decrementRecoil = true;
-        yield break;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    private void StartRecoilCoroutine()
-    {
-        StopRecoilCoroutine();
-        recoilCoroutine = RecoilCoroutine();
-        StartCoroutine(recoilCoroutine);
-
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    private void StopRecoilCoroutine()
-    {
-        if (recoilCoroutine != null)
-        {
-            StopCoroutine(recoilCoroutine);
-        }
     }
 
     /// <summary>
@@ -436,18 +383,44 @@ public class Weapon : MonoBehaviour, Interactable
     /// </summary>
     private void SpawnProjectile()
     {
+        ObjectPool.Instance.SpawnFromPool(muzzleFlash.name, muzzles[muzzleTurn].position, muzzles[muzzleTurn].rotation, transform.parent);
+
         for (int i = 0; i < bulletsPerShot; i++)
         {
-            float xRotationOffset;
-            float yRotationOffset;
-            Vector3 position = player ? Camera.main.transform.TransformPoint(Vector3.forward * 2) : muzzles[muzzleTurn].position; 
-            GameObject newProjectile = ObjectPool.Instance.SpawnFromPool(projectilePrefab.name, position, transform.rotation);
-            SetProjectileProperties(newProjectile);
-            xRotationOffset = Random.Range(-45, 45) * GetSpread() / 5;
-            yRotationOffset = Random.Range(-45, 45) * GetSpread() / 5;
-            newProjectile.transform.rotation = Quaternion.Euler(new Vector3(newProjectile.transform.rotation.eulerAngles.x + xRotationOffset, newProjectile.transform.rotation.eulerAngles.y + yRotationOffset, newProjectile.transform.rotation.eulerAngles.z));
-            ObjectPool.Instance.SpawnFromPool(muzzleFlash.name, muzzles[muzzleTurn].position, muzzles[muzzleTurn].rotation, transform.parent);
+            float xRotationOffset = Random.Range(-45, 45) * spread / 5;
+            float yRotationOffset = Random.Range(-45, 45) *  spread / 5;
+            Vector3 position = player ? Camera.main.transform.TransformPoint(Vector3.forward * 2) : muzzles[muzzleTurn].position;
 
+            if (hitScan) 
+            {
+                Vector3 direction = Quaternion.Euler(new Vector3(0, xRotationOffset, yRotationOffset)) * transform.forward;
+
+                if (Physics.Raycast(position, direction, out RaycastHit hit, range))
+                {
+                    if (hit.collider.tag is "Enemy" && player)
+                    {
+                        if (hudController != null)
+                        {
+                            hudController.CreateTickMarker(hit.transform.position);
+                        }
+
+                        // TODO: check if hitbox critical or critcal shot
+
+                        hit.collider.GetComponent<Enemy>().Damage(damage);
+                    }
+                    else if (hit.collider.tag == "Player" && !player)
+                    {
+                        hit.collider.GetComponent<PlayerController>().DamagePlayer(damage);
+                    }
+
+                    ObjectPool.Instance.SpawnFromPool(impactEffect.name, hit.point, Quaternion.identity);
+                }
+            } else 
+            {
+                GameObject newProjectile = ObjectPool.Instance.SpawnFromPool(projectilePrefab.name, position, transform.rotation);
+                newProjectile.transform.rotation = Quaternion.Euler(new Vector3(newProjectile.transform.rotation.eulerAngles.x + xRotationOffset, newProjectile.transform.rotation.eulerAngles.y + yRotationOffset, newProjectile.transform.rotation.eulerAngles.z));
+                SetProjectileProperties(newProjectile);
+            }
         }
 
         if (muzzles.Length > 1)
@@ -455,13 +428,7 @@ public class Weapon : MonoBehaviour, Interactable
             muzzleTurn = muzzleTurn == muzzles.Length - 1 ? 0 : muzzleTurn + 1;
         }
 
-        if (currRecoil + currSpread < currMaxSpread)
-        {
-            currRecoil += recoil;
-        }
-
         currAmmo -= 1;
-        StartRecoilCoroutine();
     }
 
     /// <summary>
@@ -504,14 +471,13 @@ public class Weapon : MonoBehaviour, Interactable
         // TODO: if settle animation exists, change settle time to settle animation time
         // settleTime = Anim.GetTime();
 
-        
         opened = false;
 
         player = transform.parent != null && transform.parent.tag is "Player";
         if (player)
         {
             hudController =  GameObject.FindObjectOfType<HUDController>();
-            hudController.AssignWeaponInformation(ammoCounter, totalAmmoCounter, weaponUnavailableImage, weaponInfoBackgroundImage);
+            AssignWeaponUIToHUD();
 
             // TODO: Load Custom Charm and skin
             if (weaponCharm != null)
@@ -527,6 +493,7 @@ public class Weapon : MonoBehaviour, Interactable
         Destroy(GetComponent<Rigidbody>());
         GetComponentInChildren<Collider>().enabled = false;
         interactionPoint.gameObject.SetActive(false);
+        weaponInformation.SetActive(true);
     }
 
     /// <summary>
@@ -542,6 +509,7 @@ public class Weapon : MonoBehaviour, Interactable
         GetComponent<Rigidbody>().AddForce(transform.forward * 3);
         GetComponentInChildren<Collider>().enabled = true;
         interactionPoint.gameObject.SetActive(true);
+        weaponInformation.SetActive(false);
     }
 
     /// <summary>
@@ -553,7 +521,7 @@ public class Weapon : MonoBehaviour, Interactable
         { 
             switch (varient)
             {
-                case (Varient.Burst):
+                case Varient.Burst:
                     StartBurstCoroutine();
                     break;
                 default:
@@ -583,23 +551,27 @@ public class Weapon : MonoBehaviour, Interactable
         {
             switch (zoom)
             {
-                case (Zoom.Standard):
-                    currMaxSpread *= .33f;
+                case Zoom.Standard:
                     break;
-                case (Zoom.Medium):
-                    currMaxSpread *= 0.25f;
+                case Zoom.Medium:
                     break;
-                case (Zoom.Far):
-                    currMaxSpread *= 0.2f;
+                case Zoom.Far:
                     break;
             }
 
             state = State.Aiming;
         } else
         {
-            currMaxSpread = maxSpread;
             state = State.Idle;
         }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public void AssignWeaponUIToHUD() 
+    {
+        hudController.AssignWeaponInformation(ammoCounter, totalAmmoCounter, ammoGameObject, weaponUnavailable, weaponInfoBackgroundImage);
     }
 
     /// <summary>
@@ -676,14 +648,6 @@ public class Weapon : MonoBehaviour, Interactable
     public int GetROF()
     {
         return rateOfFire;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    public float GetSpread()
-    {
-        return currSpread + currRecoil >= currMaxSpread ? currMaxSpread : (currSpread + currRecoil);
     }
 
     /// <summary>

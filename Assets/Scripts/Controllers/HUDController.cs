@@ -69,17 +69,11 @@ public class HUDController : MonoBehaviour
     [SerializeField]
     private Image weaponSillouhete;
 
-    //
-    private TextMeshProUGUI ammoCounter;
-
-    //
-    private TextMeshProUGUI totalAmmoCounter;
-
-    //
-    private Image weaponUnavailableImage;
-
-    //
-    private Image weaponInfoBackgroundImage;
+    [SerializeField]
+    private GameObject sprintIcon;
+    
+    [SerializeField]
+    private GameObject slideIcon;
 
     //
     [SerializeField]
@@ -103,7 +97,23 @@ public class HUDController : MonoBehaviour
 
     //
     [SerializeField]
-    private Image[] weaponSlots = new Image[3];
+    private Image[] weaponSlots;
+
+    //
+    private GameObject ammoGameObject;
+
+    //
+    private TextMeshProUGUI ammoCounter;
+
+    //
+    private TextMeshProUGUI totalAmmoCounter;
+
+    //
+    private GameObject weaponUnavailable;
+
+    //
+    private Image weaponInfoBackgroundImage;
+
 
     //
     private GameObject uiSight;
@@ -158,6 +168,12 @@ public class HUDController : MonoBehaviour
 
     //
     private bool breakSightCoroutineRunning;
+
+    //
+    private Color innuendo = new Color32(165, 177, 194, 150);
+
+    //
+    private Color blueGrey = new Color32(119, 140, 163, 250);
 
     //
     public const float TICK_MARKER_STAY_TIME = 0.2f;
@@ -375,12 +391,11 @@ public class HUDController : MonoBehaviour
             ammoCounter.color = Color.white;
         }
 
-        if (ammoCounter.text == "--" && totalAmmoCounter.text == "--" && !weaponUnavailableImage.gameObject.activeInHierarchy) 
+        if (ammoCounter.text == "--" && totalAmmoCounter.text == "--" && !weaponUnavailable.activeInHierarchy)
         {
-            ammoCounter.gameObject.SetActive(false);
-            totalAmmoCounter.gameObject.SetActive(false);
-            weaponUnavailableImage.gameObject.SetActive(true);
-            weaponInfoBackgroundImage.color = Color.red;
+            ammoGameObject.SetActive(false);
+            weaponUnavailable.SetActive(true);
+            weaponInfoBackgroundImage.color = new Color(Color.red.r, Color.red.g, Color.red.b, weaponInfoBackgroundImage.color.a);
         }
     }
 
@@ -392,10 +407,12 @@ public class HUDController : MonoBehaviour
     {
         if (!ammoCounter.gameObject.activeInHierarchy)
         {
-            ammoCounter.gameObject.SetActive(true);
-            totalAmmoCounter.gameObject.SetActive(true);
-            weaponUnavailableImage.gameObject.SetActive(false);
-            weaponInfoBackgroundImage.color = Color.white;
+            ammoGameObject.SetActive(true);
+            weaponUnavailable.SetActive(false);
+            if (weaponInfoBackgroundImage.color.r != Color.white.r) 
+            {
+                weaponInfoBackgroundImage.color = new Color(Color.white.r, Color.white.b, Color.white.g, weaponInfoBackgroundImage.color.a);
+            }
         }
 
         totalAmmoCounter.text = totalAmmo.ToString();
@@ -403,6 +420,16 @@ public class HUDController : MonoBehaviour
         if (totalAmmo == 0 && totalAmmoCounter.text != "--")
         {
             totalAmmoCounter.text = "--";
+        }
+
+        if (ammoCounter.text == "--" && totalAmmoCounter.text == "--" && !weaponUnavailable.activeInHierarchy)
+        {
+            ammoGameObject.SetActive(false);
+            weaponUnavailable.SetActive(true);
+            weaponInfoBackgroundImage.color = new Color(Color.red.r, Color.red.g, Color.red.b, weaponInfoBackgroundImage.color.a);
+        } else if (weaponInfoBackgroundImage.color.r == Color.red.r) 
+        {
+            weaponInfoBackgroundImage.color = new Color(Color.white.r, Color.white.g, Color.white.b, weaponInfoBackgroundImage.color.a);
         }
     }
 
@@ -412,16 +439,26 @@ public class HUDController : MonoBehaviour
     /// <param name="weaponIndex"></param>
     public void UpdateWeaponEquiped(int weaponIndex)
     {
-        weaponSlots[currentWeaponSlotActive].color = Color.gray;
-        Image weaponSlot = weaponSlots[weaponIndex];
-        weaponSlot.color = Color.black;
+        weaponSlots[currentWeaponSlotActive].color = innuendo;
+        weaponSlots[weaponIndex].color = blueGrey;
         currentWeaponSlotActive = weaponIndex;
 
-
-        if (!weaponSlot.gameObject.activeInHierarchy)
+        if (!weaponSlots[weaponIndex].gameObject.activeInHierarchy)
         {
-            weaponSlot.gameObject.SetActive(true);
+            weaponSlots[weaponIndex].gameObject.SetActive(true);
         }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="horizontalRecoil"></param>
+    /// <param name="verticalRecoil"></param>
+    public void SetReticleScaleFromRecoil(float horizontalRecoil, float verticalRecoil) 
+    {
+        float increaseMultiplier = horizontalRecoil > verticalRecoil ? horizontalRecoil : verticalRecoil;
+        float scale = Mathf.Clamp(MIN_SIGHT_SIZE + (uiSight.transform.localScale.x * increaseMultiplier), MIN_SIGHT_SIZE, MIN_SIGHT_SIZE);
+        uiSight.transform.localScale = new Vector3(scale, scale, 0);
     }
 
     /// <summary>
@@ -429,6 +466,8 @@ public class HUDController : MonoBehaviour
     /// </summary>
     public void EnableDefaultIcon()
     {
+        Debug.Log("Default");
+
         uiReload.SetActive(false);
         uiSight.SetActive(true);
         uiSight.transform.localScale = new Vector3(1 + decrementMinSpread, 1 + decrementMinSpread, 1);
@@ -440,7 +479,6 @@ public class HUDController : MonoBehaviour
     public void EnableReloadIcon(float reloadTime)
     {
         uiReload.transform.localScale = uiSight.transform.localScale;
-
         ResetReloadScale();
 
         uiSight.SetActive(false);
@@ -464,6 +502,22 @@ public class HUDController : MonoBehaviour
     /// <summary>
     /// 
     /// </summary>
+    public void DisplaySprintIcon() 
+    {
+        sprintIcon.SetActive(true);
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    public void DisplaySlideIcon() 
+    {
+        slideIcon.SetActive(true);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
     public void DisplayEmoteWheel()
     {
         emoteWheel.SetActive(true);
@@ -476,6 +530,22 @@ public class HUDController : MonoBehaviour
     public void DisplayDangerMode()
     {
         dangerIcon.SetActive(true);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public void HideSprintIcon() 
+    {
+        sprintIcon.SetActive(false);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public void HideSlideIcon() 
+    {
+        slideIcon.SetActive(false);
     }
 
     /// <summary>
@@ -541,11 +611,12 @@ public class HUDController : MonoBehaviour
         // TODO: Play audio from AudioManager
     }
 
-    public void AssignWeaponInformation(TextMeshProUGUI ammoCounter, TextMeshProUGUI totalAmmoCounter, Image weaponUnavailableImage, Image weaponInfoBackgroundImage) 
+    public void AssignWeaponInformation(TextMeshProUGUI ammoCounter, TextMeshProUGUI totalAmmoCounter, GameObject ammoGameObject, GameObject weaponUnavailable, Image weaponInfoBackgroundImage) 
     {
         this.ammoCounter = ammoCounter;
         this.totalAmmoCounter = totalAmmoCounter;
-        this.weaponUnavailableImage = weaponUnavailableImage;
+        this.ammoGameObject = ammoGameObject;
+        this.weaponUnavailable = weaponUnavailable;
         this.weaponInfoBackgroundImage = weaponInfoBackgroundImage;
     }
 

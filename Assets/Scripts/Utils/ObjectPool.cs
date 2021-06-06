@@ -93,7 +93,6 @@ public class ObjectPool : MonoBehaviour
         }
 
         poolDictionary[tag].Enqueue(spawningObject);
-
         spawningObject.SetActive(true);
 
         return spawningObject;

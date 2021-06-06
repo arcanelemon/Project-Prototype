@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 2378781650670862952}
   - component: {fileID: 1160106643630712390}
   m_Layer: 0
-  m_Name: Bullet Impact
+  m_Name: Default Impact
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -28,7 +28,7 @@ Transform:
   m_GameObject: {fileID: 8316829269056182788}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.11653137, y: 7.6605945, z: 3.8138247}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 2.3, y: 2.3, z: 2.3}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0

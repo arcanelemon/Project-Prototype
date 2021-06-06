@@ -114,6 +114,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField]
     private float jumpTime = 0.1f;
 
+    // Maximum number of times the player can jump
+    [SerializeField]
+    private int numJumps = 1;
+
     // Force multiplier used when the player jumps
     [SerializeField]
     private float maxSlideVelocity = 30;
@@ -122,26 +126,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField]
     private float minSlideVelocity = 20;
 
-    // Maximum number of times the player can jump
+    //
     [SerializeField]
-    private int numJumps = 1;
+    [Range (0.01f, 1)]
+    private float climbSpeed = 0.1f;
 
-    // Multiplier used to influence horizontal air drag
+    //
     [SerializeField]
-    private float horizontalAirDragMultiplier = 0.8f;
-
-    // Multiplier used to influence horizontal air drag
-    [SerializeField]
-    private float verticalAirDragMultiplier = 1;
-
-    // Multiplier used to influence horizontal friction
-    [SerializeField]
-    private float horizontalFrictionMultiplier = 0.02f;
-
-    // Multiplier used to influence vertical friciton
-    [SerializeField]
-    private float verticalFrictionMultiplier = 0f;
-
+    private float climbDistance = 0.5f;
+    
     [Space(10)]
     [Header("Look Variables")]
     [Space(10)]
@@ -210,6 +203,12 @@ public class PlayerController : MonoBehaviour
     private float upperHorizontalRotationalOffset = 0;
 
     //
+    private float verticalRecoil = 0;
+
+    //
+    private float horizontalRecoil = 0;
+
+    //
     private int essenceBank;
 
     //
@@ -258,20 +257,16 @@ public class PlayerController : MonoBehaviour
     private bool emoteWheelActive;
 
     //
+    private Vector2 movementInputs;
+
+    //
+    private IEnumerator decrementRecoilCoroutine;
+
+    //
     private IEnumerator reloadCoroutine;
 
-    // Enum used to define player movement state
-    private enum State
-    {
-        Default,
-        Sprinting,
-        Crouched,
-        Jumping,
-        Sliding,
-    }
-
     // The current movement state of the player
-    private State state = State.Default;
+    private MovementState state = MovementState.Default;
 
     //
     private IEnumerator restoreHealthCoroutine;
@@ -289,9 +284,6 @@ public class PlayerController : MonoBehaviour
     private Transform playerUpper;
 
     //
-    private Transform fpsCameraTransform;
-
-    //
     private FPSCameraController fpsCameraController;
 
     //
@@ -305,6 +297,17 @@ public class PlayerController : MonoBehaviour
 
     // Rigidbody of the player
     private Rigidbody rb;
+
+    // Enum used to define player movement state
+    public enum MovementState
+    {
+        Default,
+        Sprinting,
+        Crouched,
+        Jumping,
+        Sliding,
+        Climbing,
+    }
 
 
     ////// OVERRIDES //////
@@ -329,14 +332,16 @@ public class PlayerController : MonoBehaviour
         playerUpper = GetComponentsInChildren<Transform>()[1];
         hudController = gameObject.GetComponentInChildren<HUDController>();
         fpsCameraController = GetComponentInChildren<FPSCameraController>();
-        fpsCameraTransform = fpsCameraController.gameObject.transform;
         weapons = GetComponentsInChildren<Weapon>();
-        foreach(Weapon w in weapons)
+        if (weapons.Length != 0)
         {
-            w.Initialize();
-        }
+            foreach (Weapon w in weapons)
+            {
+                w.Initialize();
+            }
 
-        SwapWeapons(0);
+            SwapWeapons(0);
+        }
 
         // Pull from Config Data
 
@@ -367,31 +372,38 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    //
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.collider.tag is "Wall")
+        {
+            CheckClimb();
+        }
+    }
+
     /// <summary>
     /// 
     /// </summary>
     /// <param name="other"></param>
     void OnTriggerEnter(Collider other)
     {
-        if (other.tag is "Ground")
+        grounded = true;
+        canJump = true;
+        currentJumps = 0;
+
+
+        // Check input states
+        if (Input.GetButton("Crouch") && Input.GetAxisRaw("Vertical") >= 0)
         {
-            grounded = true;
-            canJump = true;
-            currentJumps = 0;
-
-
-            // Check input states
-            if (Input.GetButton("Crouch") && Input.GetAxisRaw("Vertical") >= 0)
-            {
-                Slide();
-            } else if (Input.GetButton("Sprint"))
-            {
-                Sprint();
-            } else
-            {
-                // reset movement to reduce risk of observed fringe cases
-                ResetMovement();
-            }
+            Slide();
+        } else if (Input.GetButton("Sprint"))
+        {
+            Sprint();
+        } else
+        {
+            // reset movement to reduce risk of observed fringe cases
+            ResetMovement();
+            fpsCameraController.Impact();
         }
     }
 
@@ -401,7 +413,7 @@ public class PlayerController : MonoBehaviour
     /// <param name="other"></param>
     void OnTriggerExit(Collider other)
     {
-        if (other.tag is "Ground")
+        if (!(Physics.OverlapSphere(transform.localPosition - Vector3.up, 0.5f).Length > 1)) 
         {
             grounded = false;
         }
@@ -434,21 +446,21 @@ public class PlayerController : MonoBehaviour
             {
 
                 // Check for sprint
-                if (Input.GetButtonDown("Sprint") && state != State.Sprinting && weapon.state != Weapon.State.Aiming)
+                if (Input.GetButtonDown("Sprint") && state != MovementState.Sprinting)
                 {
                     Sprint();
                 }
-                else if (state == State.Sprinting && (Input.GetButtonUp("Sprint") || Input.GetAxisRaw("Vertical") < 1))
+                else if (state == MovementState.Sprinting && (Input.GetButtonUp("Sprint") || Input.GetAxisRaw("Vertical") < 1))
                 {
                     ResetMovement();
                 }
 
                 // Check for crouch
-                if (Input.GetButtonDown("Crouch") && state != State.Crouched)
+                if (Input.GetButtonDown("Crouch") && state != MovementState.Crouched)
                 {
                     Crouch();
                 }
-                else if (state == State.Crouched && Input.GetButtonUp("Crouch"))
+                else if (state == MovementState.Crouched && Input.GetButtonUp("Crouch"))
                 {
                     ResetMovement();
                 }
@@ -465,28 +477,63 @@ public class PlayerController : MonoBehaviour
             {
                 Look();
 
-                // Check for Attack Button
-                if (canAttack)
+                if (weapon != null)
                 {
-                    if (Input.GetButton("Fire") && (weapon.varient == Weapon.Varient.Auto || weapon.varient == Weapon.Varient.Burst))
-                    {
-                        Attack();
-                    }
-                    else if (Input.GetButtonDown("Fire") && weapon.varient == Weapon.Varient.Semi)
-                    {
-                        Attack();
-                    }
-                }
 
-                // Check for ADS Button
-                if (Input.GetButtonDown("Aim") && state != State.Sprinting && weapon.state != Weapon.State.Aiming && weapon.state != Weapon.State.Reloading)
-                {
-                    ADS();
-                }
-                else if (Input.GetButtonUp("Aim") && weapon.state == Weapon.State.Aiming)
-                {
-                    ResetADS();
-                }
+                    // Check for Attack Button
+                    if (canAttack)
+                    {
+                        if (Input.GetButton("Fire") && (weapon.varient == Weapon.Varient.Auto || weapon.varient == Weapon.Varient.Burst))
+                        {
+                            Attack();
+                        }
+                        else if (Input.GetButtonDown("Fire") && weapon.varient == Weapon.Varient.Semi)
+                        {
+                            Attack();
+                        }
+                    }
+
+                    // Check for ADS Button
+                    if (Input.GetButtonDown("Aim") && weapon.state != Weapon.State.Aiming && weapon.state != Weapon.State.Reloading)
+                    {
+                        if (state == MovementState.Sprinting) 
+                        {
+                            ResetMovement();
+                        }
+                        ADS();
+                    }
+                    else if (Input.GetButtonUp("Aim") && weapon.state == Weapon.State.Aiming)
+                    {
+                        ResetADS();
+                    }
+
+                    // Check for ADS Button
+                    if (Input.GetButtonDown("Reload") && weapon.GetAmmoPercentage() != 1)
+                    {
+                        StartReloadCoroutine();
+                    }
+
+                    if (weapon != null && weapon.state != Weapon.State.Reloading)
+                    {
+                        // Check for weapon swap
+                        if (Input.GetButtonDown("Equip 1") && weapons[0] != null)
+                        {
+                            SwapWeapons(0);
+                        }
+                        else if (Input.GetButtonDown("Equip 2") && weapons.Length > 1)
+                        {
+                            SwapWeapons(1);
+                        }
+                        else if (Input.GetAxisRaw("Mouse ScrollWheel") != 0)
+                        {
+                            int weaponIndex = Input.GetAxisRaw("Mouse ScrollWheel") < 0 ? 1 : (int)Input.GetAxisRaw("Mouse ScrollWheel");
+
+                            if (weapons[weaponIndex] != null)
+                            {
+                                SwapWeapons(weaponIndex);
+                            }
+                        }
+                    }
 
                 // Check for Special Button
                 if (Input.GetButtonDown("Special"))
@@ -494,32 +541,7 @@ public class PlayerController : MonoBehaviour
 
                 }
 
-                // Check for ADS Button
-                if (Input.GetButtonDown("Reload") && weapon.GetAmmoPercentage() != 1)
-                {
-                    StartReloadCoroutine();
-                }
-
-                if (weapon != null && weapon.state != Weapon.State.Reloading)
-                {
-                    // Check for weapon swap
-                    if (Input.GetButtonDown("Equip 1") && weapons[0] != null)
-                    {
-                        SwapWeapons(0);
-                    }
-                    else if (Input.GetButtonDown("Equip 2") && weapons[1] != null)
-                    {
-                        SwapWeapons(1);
-                    }
-                    else if (Input.GetAxisRaw("Mouse ScrollWheel") != 0)
-                    {
-                        int weaponIndex = Input.GetAxisRaw("Mouse ScrollWheel") < 0 ? 1 : (int) Input.GetAxisRaw("Mouse ScrollWheel");
-
-                        if (weapons[weaponIndex] != null)
-                        {
-                            SwapWeapons(weaponIndex);
-                        }
-                    }
+               
                 }
             }
 
@@ -550,6 +572,9 @@ public class PlayerController : MonoBehaviour
             MouseUtils.LockMouse();
             uiElementBlocking = false;
         }
+
+        movementInputs.x = (int)Input.GetAxisRaw("Horizontal");
+        movementInputs.y = (int)Input.GetAxisRaw("Vertical");
     }
 
     /// <summary>
@@ -557,10 +582,11 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void FixedUpdate()
     {
+
         if (!disabled)
         {
             // Check for movement
-            HandleMove((int)Input.GetAxisRaw("Vertical"), (int)Input.GetAxisRaw("Horizontal"));
+            HandleMove();
         }
     }
 
@@ -594,7 +620,7 @@ public class PlayerController : MonoBehaviour
         xLookClamp += inputX;
         xLookClamp = Mathf.Clamp(xLookClamp, lookConstraintXMin, lookConstraintXMax);
         Vector3 rotPlayer = transform.rotation.eulerAngles;
-        if (state == State.Sliding)
+        if (state == MovementState.Sliding)
         {
             if (xLookClamp >= lookConstraintXMax)
             {
@@ -634,38 +660,19 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Multiplies directional input by friction/drag multipliers based on current state.
     /// </summary>
-    /// <param name="verticalDirection"></param>
-    /// <param name="horizontalDirection"></param>
-    private void HandleMove(int verticalDirection = 0, int horizontalDirection = 0)
+    private void HandleMove()
     {
-        if (state == State.Sliding)
+        float horizontalDirection = movementInputs.x;
+        float verticalDirection = movementInputs.y;
+
+        if (state == MovementState.Sliding)
         {
             // Ajdust for slide
             Slide();
-            Move(verticalDirection * verticalFrictionMultiplier * rb.velocity.x, horizontalDirection * horizontalFrictionMultiplier * rb.velocity.z);
-        }
-        else if (!grounded)
-        {
-            // Adjust for air drag
-            if (verticalDirection < 0)
-            {
-                Move(verticalDirection * verticalAirDragMultiplier, horizontalDirection * horizontalAirDragMultiplier);
-            }
-            else
-            {
-                Move(verticalDirection, horizontalDirection * horizontalAirDragMultiplier);
-            }
-        }
-        else
-        {
-            // Default
-            Move(verticalDirection, horizontalDirection);
         }
 
-        if (weapon != null)
-        {
-
-        }
+        Move(verticalDirection, horizontalDirection);
+        
     }
 
     /// <summary>
@@ -675,8 +682,28 @@ public class PlayerController : MonoBehaviour
     /// <param name="horizontalMovementMultiplier"></param>
     private void Move(float verticalMovementMultiplier, float horizontalMovementMultiplier)
     {
-        rb.MovePosition(transform.position + (transform.forward * movementSpeed * verticalMovementMultiplier * Time.deltaTime)
-            + (transform.right * movementSpeed * horizontalMovementMultiplier * Time.deltaTime));
+
+        // NOTE: Due to issues with collision, this code was converted to mimic the functionality of Rigidbody.MovePosition(...)
+        if (state != MovementState.Sliding && state != MovementState.Climbing) 
+        {
+            Vector3 desiredVelocity = (transform.forward * movementSpeed * verticalMovementMultiplier) + (transform.right * movementSpeed * horizontalMovementMultiplier) - rb.velocity;
+            rb.AddForce(new Vector3(desiredVelocity.x, 0, desiredVelocity.z), ForceMode.VelocityChange);
+        }
+
+        if (verticalMovementMultiplier != 0 || horizontalMovementMultiplier != 0)
+        { 
+            // Bob camera.
+            if (state == MovementState.Default) 
+            {
+                fpsCameraController.Bob(true);
+            } else if (state == MovementState.Sprinting) 
+            {
+                fpsCameraController.Bob(false);
+            }
+        } else if (fpsCameraController.GetBobActive())
+        {
+            fpsCameraController.StopBob();
+        }
     }
 
     /// <summary>
@@ -686,22 +713,34 @@ public class PlayerController : MonoBehaviour
     {
         if ((grounded || currentJumps < numJumps) && canJump)
         {
-            state = State.Jumping;
+            if (state == MovementState.Sprinting) 
+            {
+                hudController.HideSprintIcon();
+            } else if (state == MovementState.Sliding)
+            {
+                hudController.HideSlideIcon();
+            }
+
+            state = MovementState.Jumping;
             rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
             currentJumps++;
 
             StartCoroutine(LimitJumpTime());
 
+            // reset first person attributes
+            if (fpsCameraController.GetBobActive()) 
+            {
+                fpsCameraController.StopBob();
+            }
 
-            // reset vignette state (particularly when jumping from crouch or sprinting)
             if (fpsCameraController.GetVignetteActive())
             {
                 fpsCameraController.ResetVignette();
             }
-
-            // Animator
             // TODO: replace transform change with actual animations
             playerUpper.transform.localPosition = Vector3.up;
+
+            // TODO: Reset third person attributes
         }
     }
 
@@ -722,13 +761,21 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void Sprint()
     {
-        if (Input.GetAxisRaw("Vertical") > 0 && state != State.Sliding)
+        if (Input.GetAxisRaw("Vertical") > 0 && state != MovementState.Sliding)
         {
-            state = State.Sprinting;
+            state = MovementState.Sprinting;
             movementSpeed = sprintSpeed;
+
+            hudController.DisplaySprintIcon();
+
             if (!fpsCameraController.GetVignetteActive())
             {
                 fpsCameraController.DarkenVingette();
+            }
+
+            if (weapon != null && weapon.state == Weapon.State.Aiming) 
+            {
+                ResetADS();
             }
 
             // TODO: replace transform change with actual animations
@@ -741,9 +788,18 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void ResetMovement()
     {
-        state = State.Default;
+        if (state == MovementState.Sprinting) 
+        {
+            hudController.HideSprintIcon();
+        } else if (state == MovementState.Sliding) 
+        {
+            hudController.HideSlideIcon();
+        }
+
+        state = MovementState.Default;
         movementSpeed = initSpeed;
         rb.velocity = Vector3.zero;
+
 
         if (fpsCameraController.GetVignetteActive())
         {
@@ -759,13 +815,14 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void Crouch()
     {
-        if (state == State.Sprinting)
+        if (state == MovementState.Sprinting)
         {
+            hudController.HideSprintIcon();
             Slide();
         }
         else
         {
-            state = State.Crouched;
+            state = MovementState.Crouched;
             movementSpeed = crouchSpeed;
 
             if (!fpsCameraController.GetVignetteActive())
@@ -784,18 +841,17 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void Slide()
     {
-        if (state != State.Sliding)
+        if (state != MovementState.Sliding)
         {
             float slideVelocity;
 
             if (rb.velocity.y < 0)
             {
                 float verticalVelocity = Mathf.Abs(rb.velocity.y);
-                slideVelocity = Input.GetButton("Vertical") ? Mathf.Clamp(verticalVelocity / 4 * movementSpeed, minSlideVelocity, maxSlideVelocity) : verticalVelocity * 1.5f;
-            }
-            else
+                slideVelocity = Input.GetButton("Vertical") ? Mathf.Clamp(verticalVelocity / 4 * movementSpeed / 2, minSlideVelocity, maxSlideVelocity) : verticalVelocity * 1.5f;
+            } else
             {
-                slideVelocity = 20;
+                slideVelocity = 10;
             }
 
             // reset horizontal look clamp to prevent camera from snapping if value is too large
@@ -807,33 +863,36 @@ public class PlayerController : MonoBehaviour
             if (Input.GetButton("Horizontal"))
             {
                 direction = Input.GetAxisRaw("Horizontal") > 0 ? transform.forward + transform.right : transform.forward + -transform.right;
-            }
-            else
+            } else
             {
                 direction = transform.forward;
             }
 
             rb.AddForce(direction * slideVelocity, ForceMode.VelocityChange);
-            state = State.Sliding;
+
+
+
+            state = MovementState.Sliding;
+            hudController.DisplaySlideIcon();
+            fpsCameraController.StopBob();
             StartCoroutine(ToggleCheckSlide());
 
             // TODO: replace transform change with actual animations
             playerUpper.transform.localPosition = new Vector3(0, 0.3f, 0);
-        }
-        else if (!Input.GetButton("Crouch"))
+        } else if (!Input.GetButton("Crouch"))
         {
             rb.velocity = new Vector3(0, rb.velocity.y, 0);
             if (Input.GetButton("Sprint"))
             {
-                state = State.Sprinting;
+                state = MovementState.Sprinting;
                 Sprint();
-            }
-            else
+            } else
             {
                 ResetMovement();
             }
-        }
-        else if (rb.velocity.x < 0.5f && rb.velocity.x > -0.5f && canCheckSlide)
+
+            hudController.HideSlideIcon();
+        } else if (rb.velocity.x < 0.5f && rb.velocity.x > -0.5f && canCheckSlide)
         {
             ResetMovement();
         } else if (!fpsCameraController.GetVignetteActive())
@@ -843,7 +902,7 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>
-    /// Turns off <see cref="canCheckSlide"/> for a number of seconds in order to prevent movement reset when accelerating (this should only happen on deceleration).
+    /// Turns off <see cref="canCheckSlide"/> for a number of seconds in order to prevent movement reset when accelerating value is less than threshold (which should only happen on deceleration).
     /// </summary>
     /// <returns></returns>
     private IEnumerator ToggleCheckSlide()
@@ -851,6 +910,38 @@ public class PlayerController : MonoBehaviour
         canCheckSlide = false;
         yield return new WaitForSeconds(.25f);
         canCheckSlide = true;
+        yield break;
+    }
+
+    /// <summary>
+    /// 
+    /// CREDIT: climbing code is inspired Steven, <see href="https://www.youtube.com/watch?v=ANlC_4K3hak"></see>
+    /// </summary>
+    private void CheckClimb() 
+    {
+        // Check to make sure the ledge ends and player is not already climbing
+        if (!Physics.Raycast(transform.position + (Vector3.up * 2), transform.forward, out _, climbDistance) && state != MovementState.Climbing)
+        {
+            StartCoroutine(GrabLedge());
+        }
+    }
+
+    //
+    private IEnumerator GrabLedge() 
+    {
+        ResetMovement();
+        state = MovementState.Climbing;
+        rb.useGravity = false;
+
+        Debug.DrawRay(transform.position - Vector3.up, transform.forward, Color.green, 10);
+        while (Physics.Raycast(transform.position - Vector3.up, transform.forward, out _, climbDistance) && state == MovementState.Climbing)
+        {
+            rb.position += Vector3.up * climbSpeed;
+            yield return null;
+        }
+
+        rb.useGravity = true;
+        ResetMovement();
         yield break;
     }
 
@@ -866,10 +957,72 @@ public class PlayerController : MonoBehaviour
                 StartReloadCoroutine();
             } else 
             {
+                // fire weapon
                 StartCoroutine(LimitFireRate());
                 weapon.Shoot();
+
+                // handle recoil
+                verticalRecoil += weapon.verticalRecoil;
+                horizontalRecoil += weapon.horizontalRecoil;
+                Debug.Log(verticalRecoil);
+                
+                if (verticalRecoil < weapon.maxVerticalRecoil) 
+                {
+                    playerUpper.localRotation = Quaternion.Euler(playerUpper.localRotation.eulerAngles - (Vector3.right * weapon.verticalRecoil));
+                }
+
+                if (horizontalRecoil < weapon.maxHorizontalRecoil)
+                {
+                    transform.localRotation = Quaternion.Euler(transform.localRotation.eulerAngles + (Vector3.up * weapon.horizontalRecoil * (UnityEngine.Random.Range(0, 2) * 2 - 1)));
+                }
+
+                // update hud controller
+                hudController.SetReticleScaleFromRecoil(horizontalRecoil, verticalRecoil);
                 hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
+
+                StartDecrementRecoilCoroutine();
             }
+        }
+    }
+
+    
+    private IEnumerator DecrementRecoil() 
+    {
+        yield return new WaitForSeconds(.1f);
+        while (verticalRecoil > 0 && horizontalRecoil > 0) 
+        {
+            if (verticalRecoil > 0) 
+            {
+                verticalRecoil -= weapon.verticalRecoil;
+            }
+
+            if (horizontalRecoil > 0)
+            {
+                horizontalRecoil -= weapon.horizontalRecoil;
+            }
+
+            hudController.SetReticleScaleFromRecoil(horizontalRecoil, verticalRecoil);
+            yield return new WaitForSeconds(.01f);
+        }
+        verticalRecoil = 0;
+        horizontalRecoil = 0;
+        yield break;
+    }
+
+
+    private void StartDecrementRecoilCoroutine() 
+    {
+        StopDecrementRecoilCoroutine();
+        decrementRecoilCoroutine = DecrementRecoil();
+        StartCoroutine(decrementRecoilCoroutine);
+    }
+
+
+    private void StopDecrementRecoilCoroutine() 
+    {
+        if(decrementRecoilCoroutine != null) 
+        {
+            StopCoroutine(decrementRecoilCoroutine);
         }
     }
 
@@ -1017,9 +1170,8 @@ public class PlayerController : MonoBehaviour
         {
             canRestoreHealth = false;
             currHealth = health * 0.2f;
-            hudController.HideDangerMode();
-        }
-        else
+            fpsCameraController.StopDangerMode();
+        } else
         {
             currHealth += healthRestoreIncrement;
             hudController.UpdateFromPlayerHealth(HealthPercentage());
@@ -1054,8 +1206,9 @@ public class PlayerController : MonoBehaviour
     private IEnumerator RestoreHealthCoroutine()
     {
         hudController.DisplayDangerMode();
+        fpsCameraController.DangerMode();
         canRestoreHealth = false;
-        yield return new WaitForSeconds(sheildRechargeTime);
+        yield return new WaitForSeconds(healthRestoreTime);
         canRestoreHealth = true;
         yield break;
     }
@@ -1083,14 +1236,12 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void CheckViewFocus()
     {
-        RaycastHit hit;
-
-        if(Physics.Raycast(fpsCameraTransform.position, fpsCameraTransform.forward, out hit, interactDistance))
+        if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out RaycastHit hit, interactDistance))
         {
             InteractionPoint newFocus = hit.collider.gameObject.GetComponent<InteractionPoint>();
 
             if (newFocus != null)
-            { 
+            {
 
                 if (currentFocus != null && !currentFocus.Equals(newFocus))
                 {
@@ -1099,7 +1250,8 @@ public class PlayerController : MonoBehaviour
                 currentFocus = newFocus;
                 currentFocus.Enable();
             }
-        } else
+        }
+        else
         {
             if (currentFocus != null && currentFocus.GetActive())
             {
@@ -1121,9 +1273,6 @@ public class PlayerController : MonoBehaviour
             if (weapon.state == Weapon.State.Aiming)
             {
                 ResetADS();
-            } else if (weapon.state == Weapon.State.Reloading) 
-            {
-                StopReloadCoroutine();
             }
 
             weapon.gameObject.SetActive(false);
@@ -1132,6 +1281,7 @@ public class PlayerController : MonoBehaviour
         weapon = weapons[swapIndex];
         weapon.gameObject.SetActive(true);
         weaponSwapIndex = swapIndex;
+        weapon.AssignWeaponUIToHUD();
         hudController.UpdateWeaponEquiped(swapIndex);
         hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
         hudController.UpdateTotalAmmo(AmmoTypeToAmmount(weapon.ammoType));
@@ -1222,6 +1372,7 @@ public class PlayerController : MonoBehaviour
         {
             currHealth -= damage;
             hudController.UpdateFromPlayerHealth(HealthPercentage());
+            fpsCameraController.Damage();
         }
 
         if (HealthPercentage() <= 0.2f)
@@ -1254,22 +1405,32 @@ public class PlayerController : MonoBehaviour
         weapon.transform.rotation = weapon.transform.parent.rotation;
         weapon.Initialize();
 
-        if (weapons.Length > 1)
+        if (this.weapon == null) 
         {
-            this.weapon.Drop();
-            weapons[weaponSwapIndex] = weapon;
-            this.weapon = weapon;
-            SwapWeapons(weaponSwapIndex);
-        } else if (weapons.Length == 1)
-        {
-            weapons = new Weapon[2];
-            weapons[0] = this.weapon;
-            weapons[1] = weapon;
-            SwapWeapons(1);
-        } else
-        {
+            weapons = new Weapon[1];
             weapons[0] = weapon;
             SwapWeapons(0);
+        } else 
+        {
+            if (this.weapon.state == Weapon.State.Reloading)
+            {
+                StopReloadCoroutine();
+            }
+
+            if (weapons.Length > 1)
+            {
+                this.weapon.Drop();
+                weapons[weaponSwapIndex] = weapon;
+                this.weapon = weapon;
+                SwapWeapons(weaponSwapIndex);
+            }
+            else if (weapons.Length == 1)
+            {
+                weapons = new Weapon[2];
+                weapons[0] = this.weapon;
+                weapons[1] = weapon;
+                SwapWeapons(1);
+            }
         }
     }
 
@@ -1307,7 +1468,7 @@ public class PlayerController : MonoBehaviour
     {
         IncrementBulletBank(type, amount);
 
-        if (weapon.ammoType == type)
+        if (weapon != null && weapon.ammoType == type)
         {
             hudController.UpdateTotalAmmo(AmmoTypeToAmmount(type));
         }

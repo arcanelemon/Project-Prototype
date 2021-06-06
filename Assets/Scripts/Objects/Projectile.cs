@@ -85,7 +85,7 @@ public class Projectile : MonoBehaviour, PooledObject
     /// </summary>
     void Update()
     {
-        distance = CalculateDistance(initialPosition);
+         distance = CalculateDistance(initialPosition);
 
         if (speed != 0 && rb.velocity.magnitude == 0)
         {
@@ -129,7 +129,7 @@ public class Projectile : MonoBehaviour, PooledObject
         {
             if (tag is "Destructable")
             {
-                collision.gameObject.GetComponent<Destructable>().DestroyMesh(damage);
+                
             } else if (tag is "Enemy" && source == Source.Player) 
             {
                 if(playerHudController != null)

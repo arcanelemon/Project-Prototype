@@ -2,8 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Ammo : Pickupable
+[RequireComponent(typeof(Pickupable))]
+public class Ammo : MonoBehaviour
 {
+    private Pickupable pickupableComponent;
+
     //
     public int amount = 1;
 
@@ -31,17 +34,18 @@ public class Ammo : Pickupable
     /// <summary>
     /// 
     /// </summary>
-    private void FixedUpdate()
+    private void Awake()
     {
-        Magnetize();
+        pickupableComponent = GetComponent<Pickupable>();
+        pickupableComponent.ExecuteTrigger += Execution;
+        pickupableComponent.motion = Pickupable.PickUpMotion.Magnetize;
     }
 
     /// <summary>
     /// 
     /// </summary>
-    override
-    public void ExecuteTrigger(PlayerController player)
+    private void Execution()
     {
-        player.AddAmmo(type, amount);
+       GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerController>().AddAmmo(type, amount);
     }
 }
