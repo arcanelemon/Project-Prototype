@@ -12,9 +12,6 @@ public class HUDController : MonoBehaviour
     //
     private const float MAX_SIGHT_SIZE = 3;
 
-    //
-    private const float ROF_BREAK_THRESHOLD = 120;
-
     [Header("Configure")]
     [Space(10)]
 
@@ -93,27 +90,69 @@ public class HUDController : MonoBehaviour
 
     //
     [SerializeField]
+    private GameObject textChatBackground;
+
+    //
+    [SerializeField]
+    private InputField textChatInputField;
+
+    //
+    [SerializeField]
+    private Scrollbar textChatScroll;
+
+    //
+    [SerializeField]
     private GameObject dangerIcon;
+
+    //
+    [SerializeField]
+    private TextMeshProUGUI ammoCounter;
+    
+    //
+    [SerializeField]
+    private TextMeshProUGUI weaponName;
+
+    //
+    [SerializeField]
+    private Transform bulletContainer;
+
+    //
+    [SerializeField]
+    private GameObject weaponInfoGameObject;
 
     //
     [SerializeField]
     private Image[] weaponSlots;
 
     //
-    private GameObject ammoGameObject;
+    private float minSightScale;
 
     //
-    private TextMeshProUGUI ammoCounter;
+    private float sightScaleAdjustment = 0;
 
     //
-    private TextMeshProUGUI totalAmmoCounter;
+    private PlayerController.MovementState sightState = PlayerController.MovementState.Default;
 
     //
-    private GameObject weaponUnavailable;
+    private static int emoteSelected = -1;
+
+    //
+    private IEnumerator decrementHealthFollowCoroutine;
+
+    //
+    private IEnumerator tintSightOnHitCoroutine;
+
+    //
+    private Color innuendo = new Color32(165, 177, 194, 150);
+
+    //
+    private Color blueGrey = new Color32(119, 140, 163, 250);
 
     //
     private Image weaponInfoBackgroundImage;
 
+    //
+    private Image[] bullets;
 
     //
     private GameObject uiSight;
@@ -149,31 +188,7 @@ public class HUDController : MonoBehaviour
     }
 
     //
-    private IEnumerator decrementHealthFollowCoroutine;
-
-    //
-    private IEnumerator tintSightOnHitCoroutine;
-
-    //
     private PlayerController player;
-
-    //
-    private int currentWeaponSlotActive;
-
-    //
-    private static int emoteSelected = -1;
-
-    //
-    private float decrementMinSpread;
-
-    //
-    private bool breakSightCoroutineRunning;
-
-    //
-    private Color innuendo = new Color32(165, 177, 194, 150);
-
-    //
-    private Color blueGrey = new Color32(119, 140, 163, 250);
 
     //
     public const float TICK_MARKER_STAY_TIME = 0.2f;
@@ -188,6 +203,9 @@ public class HUDController : MonoBehaviour
     {
         UpdateHUD();
         HUDUpdateTasks += StallForTasks;
+
+        // Initialize Variables
+        minSightScale = MIN_SIGHT_SIZE;
     }
 
     /// <summary>
@@ -200,6 +218,14 @@ public class HUDController : MonoBehaviour
 
 
     ////// PRIVATE //////
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private void StallForTasks()
+    {
+        // noop
+    }
 
     /// <summary>
     /// 
@@ -280,41 +306,6 @@ public class HUDController : MonoBehaviour
     /// <summary>
     /// 
     /// </summary>
-    private void StartBreakSightCoroutine()
-    {
-        if (!breakSightCoroutineRunning)
-        {
-            StartCoroutine(BreakSight());
-        } 
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <returns></returns>
-    private IEnumerator BreakSight()
-    {
-        //breakSightCoroutineRunning = true;
-        //Animator uiSightAnimator = uiSight.GetComponent<Animator>();
-
-        //uiSightAnimator.Play("Break", 0);
-        //while (uiSightAnimator.GetCurrentAnimatorStateInfo(0).IsName("Break"))
-        //{
-        //    yield return null;
-        //}
-        //uiSightAnimator.speed = 1 / (weapon.GetROF() / 60);
-        //while (uiSightAnimator.GetCurrentAnimatorStateInfo(0).IsName("Gone"))
-        //{
-        //    yield return null;
-        //}
-        //uiSightAnimator.speed = 1;
-        //breakSightCoroutineRunning = false;
-        yield break;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
     private void ResetReloadScale()
     {
         if (uiReload.transform.localScale != Vector3.one)
@@ -325,13 +316,16 @@ public class HUDController : MonoBehaviour
             HUDUpdateTasks -= ResetReloadScale;
         }
     }
-
+    
     /// <summary>
     /// 
     /// </summary>
-    private void StallForTasks()
+    private void ResetSightScale()
     {
-        // noop
+        if (uiSight.transform.localScale.x != minSightScale)
+        {
+            uiSight.transform.localScale = Vector3.Lerp(uiSight.transform.localScale, new Vector3(minSightScale, minSightScale, 0), 20 * Time.deltaTime);
+        }
     }
 
     /// <summary>
@@ -367,6 +361,11 @@ public class HUDController : MonoBehaviour
             healthImageFill.fillAmount = healthFillPercentage;
             healthImageFollow.fillAmount = healthFillPercentage;
         }
+
+        if (healthFillPercentage > 0.2f && dangerIcon.activeInHierarchy) 
+        {
+            dangerIcon.SetActive(false);
+        }
     }
 
     /// <summary>
@@ -391,61 +390,18 @@ public class HUDController : MonoBehaviour
             ammoCounter.color = Color.white;
         }
 
-        if (ammoCounter.text == "--" && totalAmmoCounter.text == "--" && !weaponUnavailable.activeInHierarchy)
+        int j = 0;
+        for(int i = bullets.Length - 1; i >= 0; i--) 
         {
-            ammoGameObject.SetActive(false);
-            weaponUnavailable.SetActive(true);
-            weaponInfoBackgroundImage.color = new Color(Color.red.r, Color.red.g, Color.red.b, weaponInfoBackgroundImage.color.a);
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="totalAmmo"></param>
-    public void UpdateTotalAmmo(int totalAmmo)
-    {
-        if (!ammoCounter.gameObject.activeInHierarchy)
-        {
-            ammoGameObject.SetActive(true);
-            weaponUnavailable.SetActive(false);
-            if (weaponInfoBackgroundImage.color.r != Color.white.r) 
+            if (i > ammo - 1) 
             {
-                weaponInfoBackgroundImage.color = new Color(Color.white.r, Color.white.b, Color.white.g, weaponInfoBackgroundImage.color.a);
+                bullets[j].color = Color.black;
+            } else 
+            {
+                bullets[j].color = Color.white;
             }
-        }
 
-        totalAmmoCounter.text = totalAmmo.ToString();
-
-        if (totalAmmo == 0 && totalAmmoCounter.text != "--")
-        {
-            totalAmmoCounter.text = "--";
-        }
-
-        if (ammoCounter.text == "--" && totalAmmoCounter.text == "--" && !weaponUnavailable.activeInHierarchy)
-        {
-            ammoGameObject.SetActive(false);
-            weaponUnavailable.SetActive(true);
-            weaponInfoBackgroundImage.color = new Color(Color.red.r, Color.red.g, Color.red.b, weaponInfoBackgroundImage.color.a);
-        } else if (weaponInfoBackgroundImage.color.r == Color.red.r) 
-        {
-            weaponInfoBackgroundImage.color = new Color(Color.white.r, Color.white.g, Color.white.b, weaponInfoBackgroundImage.color.a);
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="weaponIndex"></param>
-    public void UpdateWeaponEquiped(int weaponIndex)
-    {
-        weaponSlots[currentWeaponSlotActive].color = innuendo;
-        weaponSlots[weaponIndex].color = blueGrey;
-        currentWeaponSlotActive = weaponIndex;
-
-        if (!weaponSlots[weaponIndex].gameObject.activeInHierarchy)
-        {
-            weaponSlots[weaponIndex].gameObject.SetActive(true);
+            j++;
         }
     }
 
@@ -456,9 +412,60 @@ public class HUDController : MonoBehaviour
     /// <param name="verticalRecoil"></param>
     public void SetReticleScaleFromRecoil(float horizontalRecoil, float verticalRecoil) 
     {
-        float increaseMultiplier = horizontalRecoil > verticalRecoil ? horizontalRecoil : verticalRecoil;
-        float scale = Mathf.Clamp(MIN_SIGHT_SIZE + (uiSight.transform.localScale.x * increaseMultiplier), MIN_SIGHT_SIZE, MIN_SIGHT_SIZE);
+        float increase = horizontalRecoil > verticalRecoil ? horizontalRecoil : verticalRecoil;
+        float scale = Mathf.Clamp(minSightScale + increase, minSightScale, MAX_SIGHT_SIZE);
         uiSight.transform.localScale = new Vector3(scale, scale, 0);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="moving"></param>
+    public void SetReticleScaleFromMovementState(bool moving, PlayerController.MovementState movementState = PlayerController.MovementState.Default) 
+    {
+
+        if (moving) 
+        {
+            if (movementState != sightState) 
+            {
+                switch (sightState)
+                {
+                    case PlayerController.MovementState.Crouched:
+                        minSightScale -= 0.1f;
+                        break;
+                    case PlayerController.MovementState.Jumping:
+                        minSightScale -= 0.4f;
+                        break;
+                    default:
+                        minSightScale -= 0.3f;
+                        break;
+                }
+
+                switch (movementState)
+                {
+                    case PlayerController.MovementState.Crouched:
+                        sightScaleAdjustment = 0.1f;
+                        break;
+                    case PlayerController.MovementState.Jumping:
+                        sightScaleAdjustment = 0.4f;
+                        break;
+                    default:
+                        sightScaleAdjustment = 0.3f;
+                        break;
+                }
+
+                minSightScale += sightScaleAdjustment;
+                sightState = movementState;
+            }
+        } else 
+        {
+            minSightScale -= sightScaleAdjustment;
+        }
+    }
+    
+    public void SetReticleScaleFromAimState(bool aiming) 
+    {
+        minSightScale = aiming ? minSightScale / 1.3f : minSightScale * 1.3f;
     }
 
     /// <summary>
@@ -466,11 +473,9 @@ public class HUDController : MonoBehaviour
     /// </summary>
     public void EnableDefaultIcon()
     {
-        Debug.Log("Default");
-
         uiReload.SetActive(false);
         uiSight.SetActive(true);
-        uiSight.transform.localScale = new Vector3(1 + decrementMinSpread, 1 + decrementMinSpread, 1);
+        //uiSight.transform.localScale = new Vector3(1 , 1, 1);
     }
 
     /// <summary>
@@ -479,7 +484,7 @@ public class HUDController : MonoBehaviour
     public void EnableReloadIcon(float reloadTime)
     {
         uiReload.transform.localScale = uiSight.transform.localScale;
-        ResetReloadScale();
+        HUDUpdateTasks += ResetReloadScale;
 
         uiSight.SetActive(false);
         uiReload.SetActive(true);
@@ -488,6 +493,45 @@ public class HUDController : MonoBehaviour
         if (uiReloadAnimator.GetCurrentAnimatorStateInfo(0).loop)
         {
             uiReloadAnimator.speed = 1 / reloadTime;
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public void EnableTextChat() 
+    {
+        textChatBackground.SetActive(true);
+        textChatScroll.interactable = true;
+        textChatInputField.interactable = true;
+        textChatInputField.ActivateInputField();
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public void DisableTextChat() 
+    {
+        textChatBackground.SetActive(false);
+        textChatScroll.interactable = false;
+        textChatInputField.interactable = false;
+        textChatInputField.DeactivateInputField();
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public int SendTextChatMessage()
+    {
+        if (textChatInputField.text.Length > 0)
+        {
+            string message = textChatInputField.text;
+            textChatInputField.text = "";
+            DisableTextChat();
+            return 1;
+        } else
+        {
+            return 0;
         }
     }
 
@@ -582,14 +626,14 @@ public class HUDController : MonoBehaviour
     {
         return emoteSelected;
     }
-
+    
     /// <summary>
     /// 
     /// </summary>
-    public void IncrementSightScaleWithRecoil()
+    /// <returns></returns>
+    public bool GetTextChatActive()
     {
-        //float scale = Mathf.Clamp(weapon.GetSpread() + 1, MIN_SIGHT_SIZE, MAX_SIGHT_SIZE);
-        //uiSight.transform.localScale = Vector3.one * scale;
+        return textChatBackground.activeInHierarchy;
     }
 
     /// <summary>
@@ -611,13 +655,34 @@ public class HUDController : MonoBehaviour
         // TODO: Play audio from AudioManager
     }
 
-    public void AssignWeaponInformation(TextMeshProUGUI ammoCounter, TextMeshProUGUI totalAmmoCounter, GameObject ammoGameObject, GameObject weaponUnavailable, Image weaponInfoBackgroundImage) 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="weaponInfoBackgroundImage"></param>
+    /// <param name="weaponName"></param>
+    /// <param name="weaponAmmoCapacity"></param>
+    public void AssignWeaponInformation(Image weaponInfoBackgroundImage, string weaponName, int weaponAmmoCapacity) 
     {
-        this.ammoCounter = ammoCounter;
-        this.totalAmmoCounter = totalAmmoCounter;
-        this.ammoGameObject = ammoGameObject;
-        this.weaponUnavailable = weaponUnavailable;
         this.weaponInfoBackgroundImage = weaponInfoBackgroundImage;
+        this.weaponName.text = weaponName;
+        weaponInfoGameObject.SetActive(true);
+
+        if (bulletContainer.childCount > 0) 
+        {
+            foreach (Transform child in bulletContainer.transform)
+            {
+                GameObject.Destroy(child.gameObject);
+            }
+        }
+
+        bullets = new Image[weaponAmmoCapacity];
+        for (int i = 0; i < weaponAmmoCapacity; i++) 
+        {
+            bullets[i] = Instantiate(Resources.Load<GameObject>("Prefabs/UI/HUD/Components/UI Bullet"), bulletContainer).GetComponent<Image>();
+        }
+
+        HUDUpdateTasks += ResetSightScale;
+        EnableDefaultIcon();
     }
 
     /// <summary>

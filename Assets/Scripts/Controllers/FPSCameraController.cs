@@ -76,6 +76,18 @@ public class FPSCameraController : MonoBehaviour
 
     [SerializeField]
     private float impactOffset = 0.25f;
+    
+    [Space(10)]
+    [Header("Shake")]
+    [Space(10)]
+
+    //
+    [SerializeField]
+    private float shakeSpeed = 1f;
+
+    //
+    [SerializeField]
+    private float shakeOffset = 0.25f;
 
     [Space(10)]
     [Header("Vignette")]
@@ -242,9 +254,17 @@ public class FPSCameraController : MonoBehaviour
             PerformImpact();
         } 
         
+        if (shouldShake)
+        {
+            PerformShake();
+        } else if (transform.localPosition.z != 0) 
+        {
+            ResetZPosition();
+        }
+        
         if (!shouldBob && !shouldImpact && transform.localPosition.y != 0) 
         {
-            ResetPosition();
+            ResetXYPosition();
         }
 
         if (alterVignette)
@@ -282,9 +302,17 @@ public class FPSCameraController : MonoBehaviour
     /// <summary>
     /// 
     /// </summary>
-    private void ResetPosition() 
+    private void ResetXYPosition() 
     {
-         transform.localPosition = Vector3.Lerp(transform.localPosition, Vector3.zero, impactSpeed * Time.deltaTime);
+         transform.localPosition = Vector3.Lerp(transform.localPosition, new Vector3(0, 0, transform.localPosition.z), impactSpeed * Time.deltaTime);
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    private void ResetZPosition() 
+    {
+         transform.localPosition = Vector3.Lerp(transform.localPosition, new Vector3(transform.localPosition.x, transform.localPosition.y, 0), shakeSpeed * Time.deltaTime);
     }
 
     /// <summary>
@@ -329,6 +357,19 @@ public class FPSCameraController : MonoBehaviour
         if (transform.localPosition.y == -impactOffset)
         {
             shouldImpact = false;
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private void PerformShake() 
+    {
+        transform.localPosition = Vector3.Lerp(transform.localPosition, new Vector3(transform.localPosition.x, -transform.localPosition.y, -shakeOffset), shakeSpeed * Time.time);
+
+        if (transform.localPosition.z == -shakeOffset)
+        {
+            shouldShake = false;
         }
     }
 
@@ -596,6 +637,14 @@ public class FPSCameraController : MonoBehaviour
         shouldImpact = true;
         vignette.intensity.value = maxVignetteIntensity * 0.65f;
         ResetVignette();
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public void Shake() 
+    {
+        shouldShake = true;
     }
 
 

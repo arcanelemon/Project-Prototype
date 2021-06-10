@@ -46,6 +46,6 @@ public class Ammo : MonoBehaviour
     /// </summary>
     private void Execution()
     {
-       GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerController>().AddAmmo(type, amount);
+
     }
 }

@@ -58,38 +58,6 @@ public class PlayerController : MonoBehaviour
     [SerializeField]
     private float sheildIncrement = 0.1f;
 
-    //
-    [SerializeField]
-    private int lightBulletBankStarting = 150;
-
-    //
-    [SerializeField]
-    private int lightBulletBankMax = 500;
-
-    //
-    [SerializeField]
-    private int mediumBulletBankStarting = 100;
-
-    //
-    [SerializeField]
-    private int mediumBulletBankMax = 300;
-
-    //
-    [SerializeField]
-    private int heavyBulletBankStarting = 50;
-
-    //
-    [SerializeField]
-    private int heavyBulletBankMax = 150;
-
-    //
-    [SerializeField]
-    private int specialBulletBankStarting = 8;
-
-    //
-    [SerializeField]
-    private int specialBulletBankMax = 30;
-
     [Space(10)]
     [Header("Movement Variables")]
     [Space(10)]
@@ -212,18 +180,6 @@ public class PlayerController : MonoBehaviour
     private int essenceBank;
 
     //
-    private int bulletBankLight;
-
-    //
-    private int bulletBankMedium;
-
-    //
-    private int bulletBankHeavy;
-
-    //
-    private int bulletBankSpecial;
-
-    //
     private int weaponSwapIndex = 0;
 
     // The current number of jumps that the player has used
@@ -231,6 +187,9 @@ public class PlayerController : MonoBehaviour
 
     //
     private bool disabled;
+
+    //
+    private bool moving;
 
     // Boolean used to check if the player is on touching the ground
     private bool grounded;
@@ -322,10 +281,6 @@ public class PlayerController : MonoBehaviour
         currHealth = health;
         currSheild = sheild;
         movementSpeed = initSpeed;
-        bulletBankLight = lightBulletBankStarting;
-        bulletBankMedium = mediumBulletBankStarting;
-        bulletBankHeavy = heavyBulletBankStarting;
-        bulletBankSpecial = specialBulletBankStarting;
 
         //playerUpper = gameObject.GetComponentInChildren<Transform>();
         rb = GetComponent<Rigidbody>();
@@ -541,7 +496,6 @@ public class PlayerController : MonoBehaviour
 
                 }
 
-               
                 }
             }
 
@@ -561,6 +515,22 @@ public class PlayerController : MonoBehaviour
             {
                 Emote();
             }
+        }
+
+        if (Input.GetButtonDown("Submit")) 
+        {
+            if (!hudController.GetTextChatActive()) 
+            {
+                uiElementBlocking = true;
+                hudController.EnableTextChat();
+            } else if (hudController.SendTextChatMessage() == 1)
+            {
+                uiElementBlocking = false;
+            }
+        } else if (Input.GetButtonDown("Cancel") && hudController.GetTextChatActive()) 
+        {
+            uiElementBlocking = false;
+            hudController.DisableTextChat();
         }
 
         if (Input.GetButtonDown("Inventory"))
@@ -586,7 +556,7 @@ public class PlayerController : MonoBehaviour
         if (!disabled)
         {
             // Check for movement
-            HandleMove();
+            Move();
         }
     }
 
@@ -660,7 +630,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Multiplies directional input by friction/drag multipliers based on current state.
     /// </summary>
-    private void HandleMove()
+    private void Move()
     {
         float horizontalDirection = movementInputs.x;
         float verticalDirection = movementInputs.y;
@@ -671,38 +641,42 @@ public class PlayerController : MonoBehaviour
             Slide();
         }
 
-        Move(verticalDirection, horizontalDirection);
-        
-    }
-
-    /// <summary>
-    /// Moves player by the given horizontal and vertical movement multipliers.
-    /// </summary>
-    /// <param name="verticalMovementMultiplier"></param>
-    /// <param name="horizontalMovementMultiplier"></param>
-    private void Move(float verticalMovementMultiplier, float horizontalMovementMultiplier)
-    {
-
         // NOTE: Due to issues with collision, this code was converted to mimic the functionality of Rigidbody.MovePosition(...)
-        if (state != MovementState.Sliding && state != MovementState.Climbing) 
+        if (state != MovementState.Sliding && state != MovementState.Climbing)
         {
-            Vector3 desiredVelocity = (transform.forward * movementSpeed * verticalMovementMultiplier) + (transform.right * movementSpeed * horizontalMovementMultiplier) - rb.velocity;
+            Vector3 desiredVelocity = (transform.forward * movementSpeed * verticalDirection) + (transform.right * movementSpeed * horizontalDirection) - rb.velocity;
             rb.AddForce(new Vector3(desiredVelocity.x, 0, desiredVelocity.z), ForceMode.VelocityChange);
         }
 
-        if (verticalMovementMultiplier != 0 || horizontalMovementMultiplier != 0)
-        { 
+        if (verticalDirection != 0 || horizontalDirection != 0)
+        {
             // Bob camera.
-            if (state == MovementState.Default) 
+            if (state == MovementState.Default)
             {
                 fpsCameraController.Bob(true);
-            } else if (state == MovementState.Sprinting) 
+            }
+            else if (state == MovementState.Sprinting)
             {
                 fpsCameraController.Bob(false);
             }
-        } else if (fpsCameraController.GetBobActive())
+
+            if (!moving) 
+            {
+                moving = true;
+            }
+
+            hudController.SetReticleScaleFromMovementState(moving, state);
+        }
+        else if (fpsCameraController.GetBobActive())
         {
             fpsCameraController.StopBob();
+        }
+
+        if (verticalDirection == 0 && horizontalDirection == 0 && moving) 
+        {
+            moving = false;
+
+            hudController.SetReticleScaleFromMovementState(moving);
         }
     }
 
@@ -737,6 +711,7 @@ public class PlayerController : MonoBehaviour
             {
                 fpsCameraController.ResetVignette();
             }
+
             // TODO: replace transform change with actual animations
             playerUpper.transform.localPosition = Vector3.up;
 
@@ -962,10 +937,24 @@ public class PlayerController : MonoBehaviour
                 weapon.Shoot();
 
                 // handle recoil
-                verticalRecoil += weapon.verticalRecoil;
-                horizontalRecoil += weapon.horizontalRecoil;
-                Debug.Log(verticalRecoil);
+                float verticalRecoilIncrement = weapon.verticalRecoil;
+                float horizontalRecoilIncrement = weapon.horizontalRecoil;
                 
+                if (moving) 
+                {
+                    verticalRecoilIncrement += weapon.verticalRecoil * 2;
+                    horizontalRecoilIncrement += weapon.horizontalRecoil * 2;
+                }
+
+                if (weapon.state == Weapon.State.Aiming)
+                {
+                    verticalRecoilIncrement /= 2;
+                    horizontalRecoilIncrement /= 2;
+                }
+
+                verticalRecoil += verticalRecoilIncrement;
+                horizontalRecoil += horizontalRecoilIncrement;
+
                 if (verticalRecoil < weapon.maxVerticalRecoil) 
                 {
                     playerUpper.localRotation = Quaternion.Euler(playerUpper.localRotation.eulerAngles - (Vector3.right * weapon.verticalRecoil));
@@ -977,9 +966,9 @@ public class PlayerController : MonoBehaviour
                 }
 
                 // update hud controller
-                hudController.SetReticleScaleFromRecoil(horizontalRecoil, verticalRecoil);
+                hudController.SetReticleScaleFromRecoil(horizontalRecoilIncrement, verticalRecoilIncrement);
                 hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
-
+                fpsCameraController.Shake();
                 StartDecrementRecoilCoroutine();
             }
         }
@@ -1038,19 +1027,14 @@ public class PlayerController : MonoBehaviour
             ResetADS();
         }
 
-        int ammoConsumed = weapon.GetUsedAmmo();
-
         // Animator
 
         // TODO: wait for anim time
-        int ammoAvailable = AmmoTypeToAmmount(weapon.ammoType);
-        weapon.Reload(ammoAvailable < weapon.GetMagazineSize() ? ammoAvailable : weapon.GetMagazineSize());
+        weapon.Reload();
         hudController.EnableReloadIcon(2);
         yield return new WaitForSeconds(2);
-        IncrementBulletBank(weapon.ammoType, -ammoConsumed);
         hudController.EnableDefaultIcon();
         hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
-        hudController.UpdateTotalAmmo(AmmoTypeToAmmount(weapon.ammoType));
         canAttack = true;
     }
 
@@ -1059,7 +1043,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void StartReloadCoroutine()
     {
-        if (weapon.state != Weapon.State.Reloading && AmmoTypeToAmmount(weapon.ammoType) > 0)
+        if (weapon.state != Weapon.State.Reloading)
         {
             StopReloadCoroutine();
             reloadCoroutine = Reload();
@@ -1077,7 +1061,6 @@ public class PlayerController : MonoBehaviour
             StopCoroutine(reloadCoroutine);
             hudController.EnableDefaultIcon();
             hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
-            hudController.UpdateTotalAmmo(AmmoTypeToAmmount(weapon.ammoType));
             weapon.state = Weapon.State.Idle;
             canAttack = true;
         }
@@ -1089,6 +1072,7 @@ public class PlayerController : MonoBehaviour
     private void ADS()
     {
         weapon.ToggleADS();
+        hudController.SetReticleScaleFromAimState(true);
         fpsCameraController.Zoom(weapon.zoom);
     }
 
@@ -1098,6 +1082,7 @@ public class PlayerController : MonoBehaviour
     private void ResetADS()
     {
         weapon.ToggleADS();
+        hudController.SetReticleScaleFromAimState(false);
         fpsCameraController.ResetZoom();
     }
 
@@ -1282,57 +1267,11 @@ public class PlayerController : MonoBehaviour
         weapon.gameObject.SetActive(true);
         weaponSwapIndex = swapIndex;
         weapon.AssignWeaponUIToHUD();
-        hudController.UpdateWeaponEquiped(swapIndex);
         hudController.UpdateCurrentAmmo(weapon.GetRemainingAmmo(), weapon.GetAmmoPercentage());
-        hudController.UpdateTotalAmmo(AmmoTypeToAmmount(weapon.ammoType));
 
         // TODO: wait for swap animation up to finish
 
         weapon.PlayAnimIfFirstTime();
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="type"></param>
-    /// <param name="amount"></param>
-    private void IncrementBulletBank(Ammo.Type type, int amount)
-    {
-        switch(type)
-        {
-            case Ammo.Type.Light:
-                bulletBankLight = bulletBankLight + amount < 0 ? 0 : bulletBankLight + amount;
-            break;
-            case Ammo.Type.Medium:
-                bulletBankMedium = bulletBankMedium + amount < 0 ? 0 : bulletBankMedium + amount;
-                break;
-            case Ammo.Type.Heavy:
-                bulletBankHeavy = bulletBankHeavy + amount < 0 ? 0 : bulletBankHeavy + amount;
-                break;
-            case Ammo.Type.Special:
-                bulletBankSpecial = bulletBankSpecial + amount < 0 ? 0 : bulletBankSpecial + amount;
-                break;
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="type"></param>
-    /// <returns></returns>
-    private int AmmoTypeToAmmount(Ammo.Type type)
-    {
-        switch (type)
-        {
-            case Ammo.Type.Light:
-                return bulletBankLight;
-            case Ammo.Type.Heavy:
-                return bulletBankHeavy;
-            case Ammo.Type.Special:
-                return bulletBankSpecial;
-            default:
-                return bulletBankMedium;
-        }
     }
 
     /// <summary>
@@ -1456,34 +1395,8 @@ public class PlayerController : MonoBehaviour
     public void AddEssence(int amount)
     {
         essenceBank += amount;
+        currHealth += 2;
+        hudController.UpdateFromPlayerHealth(HealthPercentage());
         Debug.Log("Total Essence: " + essenceBank);
     }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="type"></param>
-    /// <param name="amount"></param>
-    public void AddAmmo(Ammo.Type type, int amount)
-    {
-        IncrementBulletBank(type, amount);
-
-        if (weapon != null && weapon.ammoType == type)
-        {
-            hudController.UpdateTotalAmmo(AmmoTypeToAmmount(type));
-        }
-
-        Debug.Log("Ammo Added: " + type.ToString());
-    }
 }
-
-
-//// check if weapon is less than ROF threshold for break and that the gun has reset (aka finished settle time/ settle animation
-//if (weapon.GetROF() < ROF_BREAK_THRESHOLD && weapon.GetSpread() != uiSight.transform.localScale.x - 1)
-//{
-//    StartBreakSightCoroutine();
-//}
-//else
-//{
-//    IncrementSightScaleWithRecoil();
-//}

@@ -47,10 +47,9 @@ public class HitMarker : MonoBehaviour
 
     private void UpdateHitMarkerScreenPosition()
     {
-        tickMarkerRect.position = Camera.main.WorldToViewportPoint(position);
-
-        //tickMarkerRect.anchorMin = viewPortPoint;
-        //tickMarkerRect.anchorMax = viewPortPoint;
+        tickMarkerRect.position = Camera.main.WorldToScreenPoint(position);
+        tickMarkerRect.anchorMin = viewPortPoint;
+        tickMarkerRect.anchorMax = viewPortPoint;
     }
 
     ////// PUBLIC //////

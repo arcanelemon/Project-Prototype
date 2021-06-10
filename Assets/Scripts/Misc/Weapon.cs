@@ -364,9 +364,8 @@ public class Weapon : MonoBehaviour, Interactable
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="ammo"></param>
     /// <returns></returns>
-    private IEnumerator ReloadCoroutine(int ammo)
+    private IEnumerator ReloadCoroutine()
     {
         state = State.Reloading;
         currAmmo = 0;
@@ -493,7 +492,6 @@ public class Weapon : MonoBehaviour, Interactable
         Destroy(GetComponent<Rigidbody>());
         GetComponentInChildren<Collider>().enabled = false;
         interactionPoint.gameObject.SetActive(false);
-        weaponInformation.SetActive(true);
     }
 
     /// <summary>
@@ -534,11 +532,11 @@ public class Weapon : MonoBehaviour, Interactable
     /// <summary>
     /// 
     /// </summary>
-    public void Reload(int ammo)
+    public void Reload()
     {
         if (state != State.Reloading)
         {
-            StartCoroutine(ReloadCoroutine(ammo));
+            StartCoroutine(ReloadCoroutine());
         }
     }
 
@@ -571,7 +569,7 @@ public class Weapon : MonoBehaviour, Interactable
     /// </summary>
     public void AssignWeaponUIToHUD() 
     {
-        hudController.AssignWeaponInformation(ammoCounter, totalAmmoCounter, ammoGameObject, weaponUnavailable, weaponInfoBackgroundImage);
+        hudController.AssignWeaponInformation(weaponInfoBackgroundImage, gameObject.name, ammo);
     }
 
     /// <summary>
